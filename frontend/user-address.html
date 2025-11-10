@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Address Entry | Tindo / VYNK</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Mappls Advanced Maps SDK (unified key) -->
+  <script src="https://apis.mappls.com/advancedmaps/api/4fa2b3a7ff1eb85c0396d26f4060f70c/map_sdk?v=3.0&layer=vector"></script>
+  <style>
+    body { background:#f8fafc; font-family:'Inter',sans-serif }
+    .card { background:white; border-radius:16px; box-shadow:0 6px 18px rgba(0,0,0,0.06); padding:24px }
+    .btn { background:#22c55e; color:white; padding:10px 18px; border-radius:8px; font-weight:600 }
+    .btn:hover { background:#16a34a }
+    .address-type button { border:1px solid #d1d5db; padding:6px 14px; border-radius:8px; background:white }
+    .address-type button.active { background:#22c55e; color:white; border-color:#16a34a }
+    #mapBox { height:300px; border-radius:12px; margin-top:10px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4">
+  <!-- Header with Logo -->
+  <header class="flex items-center justify-between w-full max-w-3xl p-4 bg-green-600 text-white rounded-t-lg">
+    <img src="assets/tindo-logo.png" alt="Tindo Logo" class="w-12 h-12 rounded-full">
+    <h1 class="text-xl font-bold">Tindo</h1>
+  </header>
+
+  <div class="w-full max-w-3xl card">
+    <h1 class="text-2xl font-bold mb-2 text-center">🏠 Add Your Address</h1>
+    <p class="text-gray-500 text-center mb-6">Enter your details and save multiple addresses easily</p>
+
+    <!-- Profile Image -->
+    <div class="flex flex-col items-center mb-6">
+      <img id="preview" src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
+           class="w-24 h-24 rounded-full object-cover border mb-2" />
+      <input type="file" id="imageUpload" accept="image/*" class="text-sm" />
+    </div>
+
+    <!-- Address Form -->
+    <form id="userForm" class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div><label>Full Name</label><input id="name" type="text" class="w-full border p-2 rounded" required></div>
+        <div><label>Phone Number</label><input id="phone" type="tel" maxlength="10" class="w-full border p-2 rounded" required></div>
+        <div><label>Email</label><input id="email" type="email" class="w-full border p-2 rounded"></div>
+        <div><label>Pincode</label><input id="pincode" type="text" maxlength="6" class="w-full border p-2 rounded" required></div>
+      </div>
+
+      <div><label>House / Flat / Door No.</label><input id="house" type="text" class="w-full border p-2 rounded" required></div>
+      <div><label>Street / Locality</label><input id="street" type="text" class="w-full border p-2 rounded" required></div>
+      <div><label>Landmark</label><input id="landmark" type="text" class="w-full border p-2 rounded"></div>
+
+      <div class="grid grid-cols-3 gap-4">
+        <div><label>City</label><input id="city" type="text" class="w-full border p-2 rounded" required></div>
+        <div><label>State</label><input id="state" type="text" class="w-full border p-2 rounded" required></div>
+        <div><label>Country</label><input id="country" type="text" value="India" class="w-full border p-2 rounded"></div>
+      </div>
+
+      <!-- Address Type -->
+      <div>
+        <label>Address Type</label>
+        <div class="address-type flex gap-2 mt-2">
+          <button type="button" class="addrTypeBtn" data-type="Home">🏠 Home</button>
+          <button type="button" class="addrTypeBtn" data-type="Work">🏢 Work</button>
+          <button type="button" class="addrTypeBtn" data-type="Other">🏘️ Other</button>
+        </div>
+      </div>
+
+      <!-- Detect + Map -->
+      <div class="flex gap-2 items-center mt-3">
+        <button type="button" id="detectBtn" class="btn flex-1">📍 Detect My Location</button>
+      </div>
+      <div id="mapBox"></div>
+
+      <button type="button" id="confirmAddressBtn" class="btn w-full mt-4">✅ Confirm Address</button>
+    </form>
+
+    <div class="mt-8">
+      <h2 class="font-semibold mb-2 text-lg">Saved Addresses</h2>
+      <div id="savedList" class="text-sm"></div>
+    </div>
+  </div>
+<!-- Socket.IO client library -->
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+<!-- Your main script should start AFTER that -->
+<script>
+const BASE = "http://localhost:5000";
+let map, marker;
+let userLat = 17.385, userLng = 78.4867;
+
+// 🗺️ Initialize Mappls Map (use [lat, lng] order — Mappls in this project uses [lat, lng])
+function initMap(lat = userLat, lng = userLng) {
+  console.log("🗺️ Initializing map at:", lat, lng);
+  const center = [lat, lng]; // [lat, lng]
+  if (!map) {
+    map = new mappls.Map("mapBox", { center, zoom: 16, clickableIcons: false });
+  } else {
+    try { map.setCenter(center); } catch (_) {}
+  }
+
+  if (!marker) {
+    marker = new mappls.Marker({
+      map,
+      position: center,
+      draggable: true,
+      popupHtml: "📍 You are here",
+    });
+
+    marker.addListener("dragend", () => {
+      const pos = marker.getPosition();
+      // Mappls marker returns [lat, lng] array in our usage
+      if (Array.isArray(pos)) {
+        userLat = pos[0];
+        userLng = pos[1];
+      } else if (pos && typeof pos.lat !== 'undefined') {
+        userLat = pos.lat; userLng = pos.lng;
+      }
+      reverseGeocode(userLat, userLng);
+    });
+  } else {
+    try { marker.setPosition(center); } catch (_) {}
+  }
+
+  reverseGeocode(lat, lng);
+}
+
+// 📍 Detect Live GPS Location (Stable Version)
+async function detectLiveLocation() {
+  if (!navigator.geolocation) {
+    alert("❌ Geolocation is not supported by your browser.");
+    return;
+  }
+
+  // Show temporary message (optional UX)
+  console.log("📍 Detecting your location...");
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      userLat = position.coords.latitude;
+      userLng = position.coords.longitude;
+      console.log(`✅ Location detected: ${userLat}, ${userLng}`);
+
+      const center = [userLat, userLng];
+
+      if (!map) {
+        initMap(userLat, userLng);
+      } else {
+        try { map.setCenter(center); } catch(_) {}
+        if (marker) try { marker.setPosition(center); } catch(_) {}
+      }
+
+      // Fetch address from coordinates
+      reverseGeocode(userLat, userLng);
+    },
+    (error) => {
+      switch (error.code) {
+        case error.PERMISSION_DENIED:
+          alert("⚠️ Please allow location access in your browser settings.");
+          break;
+        case error.POSITION_UNAVAILABLE:
+          alert("📡 Unable to detect your position. Try again.");
+          break;
+        case error.TIMEOUT:
+          alert("⏱️ Location detection timed out. Please retry.");
+          break;
+        default:
+          alert("❌ An unknown error occurred while fetching location.");
+      }
+      console.error("Location error:", error);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 20000,   // 20s for slow GPS
+      maximumAge: 10000 // 10s cache allowed
+    }
+  );
+}
+
+
+// 🔄 Reverse Geocode via backend
+async function reverseGeocode(lat, lng) {
+  try {
+    const res = await fetch(`${BASE}/api/mappls/reverse-geocode?lat=${lat}&lng=${lng}`);
+    const data = await res.json();
+    if (data.success && data.address) {
+      const a = data.address;
+      document.getElementById("street").value = a.street || "";
+      document.getElementById("city").value = a.city || "";
+      document.getElementById("state").value = a.state || "";
+      document.getElementById("pincode").value = a.pincode || "";
+      document.getElementById("country").value = a.country || "India";
+    }
+  } catch (err) { console.error("Reverse geocode failed:", err); }
+}
+
+// 🔌 Socket.IO
+const socket = io("http://localhost:5000");
+socket.on("connect", () => console.log("✅ Socket connected:", socket.id));
+socket.on("pong-check", () => console.log("✅ Server ping OK"));
+socket.on("connect_error", (err) => console.error("❌ Socket error:", err.message));
+
+// 🚀 Start Map
+window.onload = () => {
+  const checkMappls = setInterval(() => {
+    if (typeof mappls !== "undefined") {
+      clearInterval(checkMappls);
+      detectLiveLocation();
+    }
+  }, 500);
+};
+
+// Wire up Detect button to trigger location detection when clicked
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('detectBtn');
+  if (btn) {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      // Provide immediate feedback
+      btn.disabled = true;
+      const prevText = btn.textContent;
+      btn.textContent = 'Detecting...';
+      detectLiveLocation().finally(() => {
+        btn.disabled = false;
+        btn.textContent = prevText;
+      });
+    });
+  }
+});
+
+// Address type button wiring
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.addrTypeBtn').forEach(b => {
+    b.addEventListener('click', (e) => {
+      document.querySelectorAll('.addrTypeBtn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    });
+  });
+
+  // Confirm address button handler
+  const confirmBtn = document.getElementById('confirmAddressBtn');
+  if (confirmBtn) confirmBtn.addEventListener('click', onConfirmAddress);
+});
+
+async function onConfirmAddress(e) {
+  try {
+    // Collect form values
+    const name = document.getElementById('name').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const pincode = document.getElementById('pincode').value.trim();
+    const house = document.getElementById('house').value.trim();
+    const street = document.getElementById('street').value.trim();
+    const landmark = document.getElementById('landmark').value.trim();
+    const city = document.getElementById('city').value.trim();
+    const state = document.getElementById('state').value.trim();
+    const country = document.getElementById('country').value.trim() || 'India';
+    const typeBtn = document.querySelector('.addrTypeBtn.active');
+    const address_type = typeBtn ? typeBtn.dataset.type : 'Home';
+
+    // Basic validation
+    if (!name || !phone || !pincode || !house || !street || !city || !state) {
+      alert('Please fill all required fields');
+      return;
+    }
+
+    const address = {
+      name, phone, email, pincode, house, street, landmark, city, state, country, address_type,
+      latitude: userLat, longitude: userLng,
+    };
+
+    // Try to POST to backend if route exists
+    try {
+      const resp = await fetch(`${BASE}/api/user-addresses`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(address)
+      });
+      if (resp.ok) {
+        // Save a copy locally as the selected address for payment page to use
+        let saved = null;
+        try { saved = await resp.json(); } catch(e) { /* ignore */ }
+        if (saved && saved.id) address.id = saved.id;
+        localStorage.setItem('tindo_selected_address', JSON.stringify(address));
+        // Optionally refresh saved list
+        loadSavedAddresses();
+  // Redirect to payment methods page
+  window.location.href = 'payment-method.html';
+        return;
+      }
+      // If server returns non-ok, fallback to localStorage below
+    } catch (err) {
+      console.warn('Backend save failed, falling back to localStorage', err.message || err);
+    }
+
+    // Fallback: save to localStorage under 'tindo_user_addresses' and set as selected
+    const key = 'tindo_user_addresses';
+    const existing = JSON.parse(localStorage.getItem(key) || '[]');
+    existing.push(address);
+    localStorage.setItem(key, JSON.stringify(existing));
+    // also set selected address for payment flow
+    localStorage.setItem('tindo_selected_address', JSON.stringify(address));
+  // Redirect to payment methods page
+  window.location.href = 'payment-method.html';
+  } catch (err) {
+    console.error('Save address failed:', err);
+    alert('Failed to save address');
+  }
+}
+
+function loadSavedAddresses() {
+  const container = document.getElementById('savedList');
+  container.innerHTML = '';
+  // Try backend first
+  fetch(`${BASE}/api/user-addresses`).then(r => r.json()).then(data => {
+    if (Array.isArray(data) && data.length) {
+      data.forEach(a => {
+        const el = document.createElement('div');
+        el.className = 'p-2 border-b';
+        el.innerHTML = `<strong>${a.name}</strong> - ${a.house}, ${a.street}, ${a.city} <div class=\"text-sm text-gray-500\">${a.phone}</div>`;
+        container.appendChild(el);
+      });
+      return;
+    }
+    // Fallback to localStorage
+    const key = 'tindo_user_addresses';
+    const existing = JSON.parse(localStorage.getItem(key) || '[]');
+    existing.forEach(a => {
+      const el = document.createElement('div');
+      el.className = 'p-2 border-b';
+      el.innerHTML = `<strong>${a.name}</strong> - ${a.house}, ${a.street}, ${a.city} <div class=\"text-sm text-gray-500\">${a.phone}</div>`;
+      container.appendChild(el);
+    });
+  }).catch(_=>{
+    const key = 'tindo_user_addresses';
+    const existing = JSON.parse(localStorage.getItem(key) || '[]');
+    existing.forEach(a => {
+      const el = document.createElement('div');
+      el.className = 'p-2 border-b';
+      el.innerHTML = `<strong>${a.name}</strong> - ${a.house}, ${a.street}, ${a.city} <div class=\"text-sm text-gray-500\">${a.phone}</div>`;
+      container.appendChild(el);
+    });
+  });
+}
+
+// Load saved addresses on open
+document.addEventListener('DOMContentLoaded', () => loadSavedAddresses());
+</script>
+</body>
+</html>

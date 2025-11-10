@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Tindo — Register</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="assets/js/redirect-to-localhost.js"></script>
+  <script src="js/wish.js" defer></script>
+  <link rel="stylesheet" href="css/animations.css" />
+  <script src="js/script.js" defer></script>
+  <style>
+    .card { 
+      background: linear-gradient(135deg, #ffffff 0%, #f8fffe 100%);
+      border: 1px solid #e6f7f0;
+      box-shadow: 0 20px 40px rgba(16, 185, 129, 0.1);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-white min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-2xl">
+    <!-- Header -->
+    <header class="flex items-center justify-between p-4 bg-green-600 text-white rounded-t-2xl">
+      <img src="assets/png.jpg" alt="Tindo Logo" class="w-12 h-12 rounded-full" onerror="this.src='assets/ping.jpg'">
+      <h1 class="text-xl font-bold">Tindo</h1>
+    </header>
+
+    <div class="text-center mb-8 p-4">
+      <h2 class="text-2xl font-bold text-gray-800 mb-2">Create your Tindo account</h2>
+      <p class="text-gray-600">Join Tindo and start ordering your favorite food</p>
+    </div>
+
+    <!-- Register Card -->
+    <div class="card rounded-2xl p-8 fade-in">
+      <form id="registerForm" class="space-y-6">
+        <div class="grid md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
+            <input id="name_input" type="text" placeholder="Enter your full name" 
+              class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-400 outline-none transition-all duration-200" required />
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
+            <input id="phone_input" type="tel" placeholder="Enter mobile number" 
+              class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-400 outline-none transition-all duration-200" required />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+          <input id="email_input" type="email" placeholder="Enter your email address" 
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-400 outline-none transition-all duration-200" required />
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+          <input id="password_input" type="password" placeholder="Create a strong password" 
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-400 outline-none transition-all duration-200" required />
+        </div>
+
+        <!-- Role Selection -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Register as</label>
+          <select id="role_input" onchange="toggleRoleFields()"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-400 outline-none transition-all duration-200">
+            <option value="customer" selected>Customer</option>
+            <option value="restaurant">Restaurant</option>
+            <option value="delivery_agent">Delivery Agent</option>
+          </select>
+        </div>
+
+        <!-- Restaurant-specific fields -->
+        <div id="restaurantFields" class="space-y-6 hidden">
+          <div class="border-t border-gray-200 pt-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Restaurant Information</h3>
+            
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Restaurant Name</label>
+              <input id="restaurant_name_input" type="text" placeholder="Enter your restaurant name" 
+                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-400 outline-none transition-all duration-200" />
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Restaurant Description</label>
+              <textarea id="restaurant_description_input" placeholder="Describe your restaurant, specialties, etc." 
+                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-400 outline-none transition-all duration-200" rows="3"></textarea>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Cuisine Type</label>
+                <select id="cuisine_input" 
+                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-400 outline-none transition-all duration-200">
+                  <option value="">Select Cuisine</option>
+                  <option value="Indian">Indian</option>
+                  <option value="Chinese">Chinese</option>
+                  <option value="Italian">Italian</option>
+                  <option value="Mexican">Mexican</option>
+                  <option value="Thai">Thai</option>
+                  <option value="Japanese">Japanese</option>
+                  <option value="American">American</option>
+                  <option value="Mediterranean">Mediterranean</option>
+                  <option value="Multi Cuisine">Multi Cuisine</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Delivery Time (minutes)</label>
+                <input id="eta_input" type="number" placeholder="30" min="15" max="120" 
+                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-400 outline-none transition-all duration-200" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Restaurant Photo</label>
+              <input id="restaurant_photo_input" type="file" accept="image/*" 
+                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-400 outline-none transition-all duration-200" />
+              <p class="text-sm text-gray-500 mt-1">Upload a photo of your restaurant (optional)</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Delivery Agent-specific fields -->
+        <div id="deliveryFields" class="space-y-6 hidden">
+          <div class="border-t border-gray-200 pt-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Delivery Agent Information</h3>
+
+            <div class="grid md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Aadhaar Number</label>
+                <input id="aadhar_input" type="text" inputmode="numeric" maxlength="12" placeholder="12-digit Aadhaar"
+                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-400 outline-none transition-all duration-200" />
+                <p class="text-sm text-gray-500 mt-1">We use this for KYC verification</p>
+              </div>
+
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Vehicle Type</label>
+                <select id="vehicle_type_input"
+                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-400 outline-none transition-all duration-200">
+                  <option value="">Select vehicle</option>
+                  <option value="Bicycle">Bicycle</option>
+                  <option value="Scooter">Scooter</option>
+                  <option value="Motorcycle">Motorcycle</option>
+                  <option value="Car">Car</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Driver Licence Image</label>
+              <input id="licence_image_input" type="file" accept="image/*"
+                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-400 outline-none transition-all duration-200" />
+              <p class="text-sm text-gray-500 mt-1">Upload a clear photo of your driver licence (optional for now)</p>
+            </div>
+          </div>
+        </div>
+
+  <button type="submit" class="btn-primary w-full py-3 text-lg" data-wish>Create Account</button>
+      </form>
+
+      <div class="text-center mt-8">
+        <p class="text-gray-600">Already have an account? 
+          <a href="login.html" class="text-green-600 hover:text-green-700 font-semibold transition-colors">Sign in here</a>
+        </p>
+        <a href="index.html" class="text-gray-500 hover:text-gray-700 text-sm mt-2 inline-block">← Back to Home</a>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const BASE = typeof SERVER !== 'undefined' ? SERVER : "http://localhost:5000";
+
+  function toggleRoleFields() {
+    const rawRole = document.getElementById("role_input").value || "";
+    const role = String(rawRole).trim().toLowerCase();
+    const restaurantFields = document.getElementById("restaurantFields");
+    const deliveryFields = document.getElementById("deliveryFields");
+    const show = (el) => { if (!el) return; el.classList.remove("hidden"); el.style.display = "block"; };
+    const hide = (el) => { if (!el) return; el.classList.add("hidden"); el.style.display = "none"; };
+    const isRestaurant = role === "restaurant" || role === "restaurant_owner";
+    const isDelivery = role === "delivery" || role === "delivery_agent";
+    console.debug('[register] toggleRoleFields role=', role, { isRestaurant, isDelivery });
+    
+    if (isRestaurant) {
+      show(restaurantFields);
+      // Make restaurant fields required
+      document.getElementById("restaurant_name_input").required = true;
+      document.getElementById("cuisine_input").required = true;
+      // Hide delivery fields and remove required
+      hide(deliveryFields);
+      setDeliveryRequired(false);
+    } else if (isDelivery) {
+      // Show delivery fields
+      show(deliveryFields);
+      setDeliveryRequired(true);
+      // Hide restaurant fields and remove required
+      hide(restaurantFields);
+      document.getElementById("restaurant_name_input").required = false;
+      document.getElementById("cuisine_input").required = false;
+    } else {
+      hide(restaurantFields);
+      // Remove required from restaurant fields
+      document.getElementById("restaurant_name_input").required = false;
+      document.getElementById("cuisine_input").required = false;
+      // Hide delivery fields
+      hide(deliveryFields);
+      setDeliveryRequired(false);
+    }
+  }
+
+  function setDeliveryRequired(isRequired){
+    document.getElementById("aadhar_input").required = isRequired;
+    document.getElementById("vehicle_type_input").required = isRequired;
+    // Licence image is optional for now because backend upload isn't wired yet
+  }
+
+  document.getElementById("registerForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("name_input").value.trim();
+    const email = document.getElementById("email_input").value.trim();
+    const phone = document.getElementById("phone_input").value.trim();
+    const password = document.getElementById("password_input").value.trim();
+    const role = document.getElementById("role_input").value;
+
+    // Get restaurant-specific data if role is restaurant
+    let restaurantData = {};
+    if (role === "restaurant") {
+      restaurantData = {
+        restaurant_name: document.getElementById("restaurant_name_input").value.trim(),
+        description: document.getElementById("restaurant_description_input").value.trim(),
+        cuisine: document.getElementById("cuisine_input").value,
+        eta: parseInt(document.getElementById("eta_input").value) || 30,
+        photo: document.getElementById("restaurant_photo_input").files[0]
+      };
+
+      // Validate restaurant fields
+      if (!restaurantData.restaurant_name) {
+        alert("Please enter your restaurant name");
+        return;
+      }
+      if (!restaurantData.cuisine) {
+        alert("Please select a cuisine type");
+        return;
+      }
+    }
+
+    // Get delivery-agent-specific data
+    let deliveryData = {};
+    if (role === "delivery_agent") {
+      const aadhar = document.getElementById("aadhar_input").value.trim();
+      const vehicleType = document.getElementById("vehicle_type_input").value;
+      const licenceImage = document.getElementById("licence_image_input").files[0] || null;
+
+      // Basic validation
+      if (!/^\d{12}$/.test(aadhar)) {
+        alert("Please enter a valid 12-digit Aadhaar number");
+        return;
+      }
+      if (!vehicleType) {
+        alert("Please select a vehicle type");
+        return;
+      }
+
+      deliveryData = { aadhar, vehicle_type: vehicleType, has_licence_image: !!licenceImage };
+    }
+
+    try {
+      if (role === "restaurant" && restaurantData.photo) {
+        // Handle file upload for restaurant registration
+        const formData = new FormData();
+        formData.append("name", name);
+        formData.append("email", email);
+        formData.append("phone", phone);
+        formData.append("password", password);
+        formData.append("role", role);
+        formData.append("restaurant_name", restaurantData.restaurant_name);
+        formData.append("description", restaurantData.description);
+        formData.append("cuisine", restaurantData.cuisine);
+        formData.append("eta", restaurantData.eta);
+        formData.append("photo", restaurantData.photo);
+
+        const res = await fetch(`${BASE}/api/auth/register-restaurant`, {
+          method: "POST",
+          body: formData
+        });
+        const json = await res.json();
+
+        if(res.ok && !json.error){
+          alert("✅ Restaurant registration submitted! Awaiting admin approval. You will be notified once approved.");
+          window.location.href = "index.html";
+        } else {
+          alert("❌ " + (json.error || "Registration failed"));
+        }
+      } else {
+        // Regular registration without file upload
+        const res = await fetch(`${BASE}/api/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            name, 
+            email, 
+            phone, 
+            password, 
+            role,
+            ...restaurantData,
+            ...deliveryData
+          })
+        });
+        const json = await res.json();
+
+        if(res.ok && !json.error){
+          // If restaurant or delivery → pending approval
+      if (role === "restaurant" || role === "delivery_agent") {
+            alert("✅ Registration submitted! Please wait for admin approval. After confirmation, you will receive an email verification.");
+            window.location.href = "index.html";
+          } else {
+            // Customer → auto login
+            localStorage.setItem("token", json.token);
+            localStorage.setItem("user", JSON.stringify(json.user));
+            alert("✅ Registration successful! You are now logged in.");
+            window.location.href = "index.html";
+          }
+        } else {
+          alert("❌ " + (json.error || "Registration failed"));
+        }
+      }
+    } catch(err){
+      alert("Network error. Try again.");
+      console.error(err);
+    }
+  });
+
+  // Ensure the correct section shows on first load and also bind change listener
+  document.addEventListener("DOMContentLoaded", () => {
+    const roleEl = document.getElementById("role_input");
+    if (roleEl) {
+      roleEl.addEventListener("change", toggleRoleFields);
+      toggleRoleFields();
+    }
+  });
+</script>
+<!-- Code injected by live-server -->
+<script>
+	// <![CDATA[  <-- For SVG support
+	if ('WebSocket' in window) {
+		(function () {
+			function refreshCSS() {
+				var sheets = [].slice.call(document.getElementsByTagName("link"));
+				var head = document.getElementsByTagName("head")[0];
+				for (var i = 0; i < sheets.length; ++i) {
+					var elem = sheets[i];
+					var parent = elem.parentElement || head;
+					parent.removeChild(elem);
+					var rel = elem.rel;
+					if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
+						var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
+						elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
+					}
+					parent.appendChild(elem);
+				}
+			}
+			var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
+			var address = protocol + window.location.host + window.location.pathname + '/ws';
+			var socket = new WebSocket(address);
+			socket.onmessage = function (msg) {
+				if (msg.data == 'reload') window.location.reload();
+				else if (msg.data == 'refreshcss') refreshCSS();
+			};
+			if (sessionStorage && !sessionStorage.getItem('IsThisFirstTime_Log_From_LiveServer')) {
+				console.log('Live reload enabled.');
+				sessionStorage.setItem('IsThisFirstTime_Log_From_LiveServer', true);
+			}
+		})();
+	}
+	else {
+		console.error('Upgrade your browser. This Browser is NOT supported WebSocket for Live-Reloading.');
+	}
+	// ]]>
+</script>

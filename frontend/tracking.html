@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tindo – Order Tracking</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="assets/js/redirect-to-localhost.js"></script>
+  <!-- Mappls Advanced Maps SDK (for routed geometry) -->
+  <script src="https://apis.mappls.com/advancedmaps/api/4fa2b3a7ff1eb85c0396d26f4060f70c/map_sdk?v=3.0&layer=vector"></script>
+  <link rel="stylesheet" href="css/ui.css">
+  <script src="js/ui.js" defer></script>
+  <script src="js/review.js" defer></script>
+  <link rel="icon" href="assets/png.jpg" />
+  
+  <style>
+    body {
+      background: linear-gradient(135deg,#f6fff7 0%,#e5fbe7 100%);
+      font-family: "Poppins", sans-serif;
+    }
+    @keyframes fadeInUp { from {opacity:0;transform:translateY(10px);} to {opacity:1;transform:translateY(0);} }
+    .fade-up{animation:fadeInUp .6s ease-in-out;}
+    /* small card like look */
+    .card{background:white;border-radius:12px;padding:12px;border:1px solid #eef7f0}
+    /* map styling */
+    #map{width:100%;height:360px;border-radius:12px;}
+    /* simple emoji icons */
+    .rider-icon{font-size:22px}
+    .rest-icon{font-size:20px}
+    .cust-icon{font-size:20px}
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center p-4">
+
+  <!-- Header -->
+  <header class="flex items-center justify-between p-4 bg-green-600 text-white">
+    <img src="assets/tindo-logo.png" alt="Tindo Logo" class="w-12 h-12 rounded-full">
+    <h1 class="text-xl font-bold">Tindo</h1>
+  </header>
+
+  <!-- Order Info -->
+  <div class="w-full max-w-3xl bg-white rounded-2xl p-5 shadow-lg mb-4">
+    <div class="flex items-center justify-between mb-4">
+      <div class="text-left">
+        <h2 class="text-2xl font-bold text-gray-800">Order Tracking</h2>
+        <p class="text-sm text-gray-500">Stay updated on your order status</p>
+      </div>
+      <div class="text-right text-sm text-gray-600">
+        <p>Order ID: <strong id="orderIdLabel">TND9876</strong></p>
+        <p>Status: <span id="statusLabel" class="text-green-600 font-semibold">Waiting</span></p>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <section id="map" class="w-full h-72 bg-green-50 border-2 border-green-200 rounded-2xl shadow-inner flex items-center justify-center text-gray-400 mb-2">
+      <p id="mapPlaceholder">🗺️ Loading live map…</p>
+    </section>
+  <p id="info" class="text-center text-green-600 text-sm mb-4">Fetching delivery route...</p>
+
+    <!-- ETA / Timer -->
+    <div class="flex justify-between text-gray-700 mb-2">
+      <p>ETA: <span id="eta">--</span></p>
+      <p>Distance: <span id="distance">--</span></p>
+      <p>Elapsed: <span id="elapsed">--</span></p>
+    </div>
+
+    <!-- Progress Steps (omitted for brevity) -->
+    <div class="w-full bg-white rounded-2xl p-5 shadow-lg fade-up mb-5">
+      <h2 class="text-lg font-semibold text-gray-800 mb-3">Delivery Progress</h2>
+      <div class="flex justify-between relative">
+        <div class="text-center relative progress-step">
+          <div class="w-6 h-6 mx-auto rounded-full bg-green-600 text-white flex items-center justify-center text-xs">1</div>
+          <p class="text-xs mt-1 text-green-700">Placed</p>
+        </div>
+        <div class="text-center relative progress-step">
+          <div class="w-6 h-6 mx-auto rounded-full bg-green-600 text-white flex items-center justify-center text-xs">2</div>
+          <p class="text-xs mt-1 text-green-700">Preparing</p>
+        </div>
+        <div class="text-center relative progress-step">
+          <div class="w-6 h-6 mx-auto rounded-full bg-green-600 text-white flex items-center justify-center text-xs">3</div>
+          <p class="text-xs mt-1 text-green-700">Picked Up</p>
+        </div>
+        <div class="text-center relative">
+          <div class="w-6 h-6 mx-auto rounded-full bg-gray-300 text-white flex items-center justify-center text-xs">4</div>
+          <p class="text-xs mt-1 text-gray-500">Delivered</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delivery Partner Card -->
+    <div class="w-full bg-white rounded-2xl p-5 shadow-lg fade-up mb-5 flex items-center justify-between">
+      <div class="flex items-center space-x-4">
+        <img src="assets/ping.jpg" alt="Rider" class="w-14 h-14 rounded-full border-2 border-green-200">
+        <div class="text-left">
+          <p id="riderName" class="font-semibold text-gray-800">Rider</p>
+          <p id="riderInfo" class="text-sm text-gray-500">—</p>
+          <p id="riderStatus" class="text-sm text-green-600">—</p>
+        </div>
+      </div>
+      <div class="space-x-2">
+        <a id="callBtn" href="#" class="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-green-700">Call</a>
+        <a href="#" class="border border-green-600 text-green-600 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-green-50">Chat</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="w-full max-w-3xl flex items-center justify-between mt-2">
+    <footer class="text-left text-gray-500 text-sm mb-4">
+      🔔 Live tracking updates powered by Tindo Smart Track v2
+    </footer>
+    <button id="markDeliveredBtn" class="btn btn-primary btn-sm" data-ripple>I've received my order</button>
+  </div>
+
+  
+
+  <script>
+    // Backend base
+    const SERVER = window.SERVER_BASE || 'http://localhost:5000';
+
+    function qs(name){ return new URLSearchParams(location.search).get(name); }
+    const orderId = qs('orderId') || localStorage.getItem('last_order_id') || '1';
+    document.getElementById('orderIdLabel').textContent = orderId;
+
+  // Mappls map variables
+  let map, deliveryMarker, routePolyline;
+  let mapplsToken = null; // OAuth token for REST APIs
+  let lastPosition = null;
+  const avgSpeedKmh = 25; // city average
+  const tripStartTs = Date.now();
+
+    // Demo coordinates (replace with actuals when wiring to backend)
+    const restaurant = { lat: 17.3850, lng: 78.4867 };
+    const customer   = { lat: 17.4483, lng: 78.3915 };
+
+    function initMap(){
+      const ph = document.getElementById('mapPlaceholder'); if(ph) ph.remove();
+      map = new mappls.Map('map', { center: [restaurant.lat, restaurant.lng], zoom: 13 });
+      new mappls.Marker({ map, position: [restaurant.lat, restaurant.lng], popupHtml: 'Restaurant 🍴' });
+      deliveryMarker = new mappls.Marker({ map, position: [customer.lat, customer.lng], popupHtml: 'Delivery 🚴' });
+      fetchRoute(restaurant, customer);
+    }
+
+    async function getMapplsToken(){
+      if (mapplsToken) return mapplsToken;
+      try{
+        const res = await fetch(`${SERVER}/api/mappls/token`);
+        if(!res.ok) throw new Error('token request failed');
+        const data = await res.json();
+        mapplsToken = data.access_token || data.token || null;
+        return mapplsToken;
+      } catch(e){
+        console.error('Failed to get Mappls token:', e.message);
+        return null;
+      }
+    }
+
+    async function fetchRoute(start, end){
+      // Ensure we have a token; route_adv supports OAuth token via access_token param
+      const token = await getMapplsToken();
+      const url = `https://apis.mappls.com/advancedmaps/v1/route_adv/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson${token ? `&access_token=${encodeURIComponent(token)}` : ''}`;
+      try{
+        const res = await fetch(url);
+        const data = await res.json();
+        const infoEl = document.getElementById('info');
+        if (data.routes && data.routes.length){
+          const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+          // remove previous polyline if present
+          if (routePolyline && typeof routePolyline.remove === 'function') { routePolyline.remove(); }
+          else if (routePolyline && typeof routePolyline.setMap === 'function') { routePolyline.setMap(null); }
+          // draw polyline with Mappls
+          routePolyline = new mappls.Polyline({
+            map: map,
+            path: coords, // [ [lat,lng], ... ]
+            strokeColor: '#16a34a',
+            strokeOpacity: 1,
+            strokeWeight: 6
+          });
+          // fit bounds to route
+          const lats = coords.map(p => p[0]);
+          const lngs = coords.map(p => p[1]);
+          const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+          const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+          if (map && typeof map.fitBounds === 'function'){
+            map.fitBounds([[minLat, minLng],[maxLat, maxLng]]);
+          } else {
+            const midLat = (minLat+maxLat)/2, midLng = (minLng+maxLng)/2;
+            map.setCenter([midLat, midLng]);
+          }
+          if (infoEl) infoEl.innerText = 'Route loaded successfully ✅';
+        } else {
+          if (infoEl) infoEl.innerText = 'Failed to load route ❌';
+        }
+      } catch(e){
+        const infoEl = document.getElementById('info');
+        if (infoEl) infoEl.innerText = 'Failed to load route ❌';
+      }
+    }
+
+    // Haversine distance in km
+    function distanceKm(a, b){
+      const toRad = (x)=>x*Math.PI/180;
+      const R=6371;
+      const dLat = toRad(b.lat - a.lat);
+      const dLng = toRad(b.lng - a.lng);
+      const sa = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLng/2)**2;
+      return 2*R*Math.atan2(Math.sqrt(sa), Math.sqrt(1-sa));
+    }
+
+    function updateEtaAndDistance(pos){
+      const dKm = distanceKm(pos, customer);
+      const etaMin = Math.max(1, Math.round((dKm/avgSpeedKmh)*60));
+      const distEl = document.getElementById('distance');
+      const etaEl = document.getElementById('eta');
+      if (distEl) distEl.textContent = dKm.toFixed(1) + ' km';
+      if (etaEl) etaEl.textContent = etaMin + ' min';
+    }
+
+    function setElapsed(){
+      const mins = Math.floor((Date.now() - tripStartTs)/60000);
+      const el = document.getElementById('elapsed');
+      if (el) el.textContent = mins + ' min';
+    }
+
+    async function updateDeliveryLocation(){
+      try{
+        const res = await fetch(`${SERVER}/api/agent/location`);
+        if(!res.ok) throw new Error('no location');
+        const data = await res.json();
+        const latLng = [data.lat, data.lng];
+        if (deliveryMarker && typeof deliveryMarker.setPosition === 'function'){
+          deliveryMarker.setPosition(latLng);
+        }
+        if (map && typeof map.panTo === 'function'){
+          map.panTo(latLng);
+        }
+        lastPosition = { lat: latLng[0], lng: latLng[1] };
+        updateEtaAndDistance(lastPosition);
+        const infoEl = document.getElementById('info');
+        if (infoEl) infoEl.innerText = 'Delivery en route 🚴💨';
+      } catch (_) { /* silent */ }
+    }
+
+    // Kickoff with Mappls SDK presence check
+    window.onload = function () {
+      if (typeof mappls !== "undefined") {
+        // Get a token first, then init (token used by route API)
+        getMapplsToken().finally(() => {
+          initMap();
+          // initial metrics
+          lastPosition = { lat: customer.lat, lng: customer.lng };
+          updateEtaAndDistance(lastPosition);
+          setElapsed();
+          // timers
+          setInterval(updateDeliveryLocation, 120000); // every 2 minutes
+          setInterval(setElapsed, 60000); // update elapsed
+        });
+      } else {
+        console.error("Mappls SDK not loaded. Check your SDK key.");
+      }
+    };
+
+    // Mark delivered and prompt review
+    async function markDelivered(){
+      try{
+        const res = await fetch(`${SERVER}/api/orders/update`,{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ order_id: orderId, status: 'Delivered' })
+        });
+        if(!res.ok){ throw new Error('Failed to update order status'); }
+        document.getElementById('statusLabel').textContent = 'Delivered';
+        // Persist for order-success fallback
+        localStorage.setItem('last_order_id', String(orderId));
+        // Try to fetch restaurant id from prior storage or ask server later if needed
+        const rid = localStorage.getItem('last_order_restaurant') || '';
+        window.TindoReview && window.TindoReview.show(orderId, rid);
+      } catch(e){ alert(e.message); }
+    }
+    document.getElementById('markDeliveredBtn').addEventListener('click', markDelivered);
+  </script>
+
+</body>
+</html>
+

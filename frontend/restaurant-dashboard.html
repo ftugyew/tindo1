@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tindo Restaurant Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="assets/js/redirect-to-localhost.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+  /* 🔥 Universal button animation (CTC style) */
+  button {
+    transition: all 0.15s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  button:active {
+    transform: scale(0.95);
+  }
+  button::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.4s ease, height 0.4s ease;
+  }
+  button:active::after {
+    width: 150%;
+    height: 150%;
+  }
+
+  /* 🔔 Small toast notifications */
+  #toast {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: #22c55e;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 9999;
+  }
+  #toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  </style>
+</head>
+
+<body class="bg-green-50 text-gray-900">
+
+<!-- Navbar -->
+<header class="bg-white shadow sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+    <div class="flex items-center space-x-4">
+      <div id="restaurantLogo" class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
+        <span class="text-white text-xl font-bold">🍴</span>
+      </div>
+      <div>
+        <h1 id="restaurantName" class="text-2xl font-bold text-green-600">Restaurant Dashboard</h1>
+        <p id="restaurantCuisine" class="text-sm text-gray-500">Loading...</p>
+      </div>
+    </div>
+    <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded">Logout</button>
+  </div>
+</header>
+
+<!-- Dashboard -->
+<section class="max-w-7xl mx-auto p-6">
+  <h2 class="text-3xl font-bold text-green-600 mb-6">📊 Restaurant Dashboard</h2>
+
+  <!-- Earnings -->
+  <div class="grid md:grid-cols-3 gap-6 mb-6">
+    <div class="bg-white p-4 rounded-xl shadow text-center">
+      <h3 class="font-bold">Today’s Earnings</h3>
+      <p id="earnToday" class="text-2xl text-green-600">₹0</p>
+    </div>
+    <div class="bg-white p-4 rounded-xl shadow text-center">
+      <h3 class="font-bold">Weekly Earnings</h3>
+      <p id="earnWeek" class="text-2xl text-green-600">₹0</p>
+    </div>
+    <div class="bg-white p-4 rounded-xl shadow text-center">
+      <h3 class="font-bold">Top Selling Item</h3>
+      <p id="topItem" class="text-xl text-green-600">-</p>
+    </div>
+  </div>
+
+  <!-- Analytics Graphs -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+    <h3 class="text-xl font-bold mb-4">📊 Restaurant Analytics</h3>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="card bg-green-50 p-4 rounded shadow">
+        <h4 class="font-bold mb-2">Orders This Week</h4>
+        <canvas id="ordersChart"></canvas>
+      </div>
+      <div class="card bg-green-50 p-4 rounded shadow">
+        <h4 class="font-bold mb-2">Revenue Breakdown</h4>
+        <canvas id="revenueChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Orders -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+    <h3 class="text-xl font-bold mb-4">🛒 Live Orders</h3>
+    <div id="ordersList" class="space-y-3">
+      <p class="text-gray-500">No orders yet...</p>
+    </div>
+  </div>
+
+  <!-- 🍽️ Menu Management -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+    <h3 class="text-xl font-bold mb-4">🍽️ Menu Management</h3>
+    <form id="menuForm" enctype="multipart/form-data" class="space-y-3">
+      <input type="text" id="item_name" name="item_name" placeholder="Dish Name" class="w-full border p-3 rounded" required>
+      <input type="number" id="price" name="price" placeholder="Price (₹)" class="w-full border p-3 rounded" required>
+      <textarea id="description" name="description" placeholder="Description" class="w-full border p-3 rounded"></textarea>
+      <!-- Veg / Non-Veg selector -->
+      <div class="flex items-center gap-3">
+        <input type="hidden" id="isVeg" name="is_veg" value="veg">
+        <button type="button" id="vegBtn" class="px-3 py-2 rounded-md bg-green-600 text-white">🥬 Veg</button>
+        <button type="button" id="nonVegBtn" class="px-3 py-2 rounded-md bg-red-100 text-red-700">🍗 Non-Veg</button>
+      </div>
+      <div class="flex gap-2">
+        <select id="categorySelect" name="category" class="border p-3 rounded w-1/2">
+          <option value="Uncategorized">Uncategorized</option>
+          <option value="Starters">Starters</option>
+          <option value="Main Course">Main Course</option>
+          <option value="Desserts">Desserts</option>
+          <option value="Beverages">Beverages</option>
+          <option value="Biryani">Biryani</option>
+          <option value="Other">Other...</option>
+        </select>
+        <input id="categoryCustom" type="text" placeholder="Custom category" class="w-1/2 border p-3 rounded" style="display:none;" />
+      </div>
+      <input type="file" id="item_image" name="image" accept="image/*" class="w-full border p-3 rounded">
+      <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded w-full">Add Dish</button>
+    </form>
+    <div id="menuList" class="grid md:grid-cols-2 gap-6 mt-6"></div>
+  </div>
+
+  <!-- Offers -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+    <h3 class="text-xl font-bold mb-4">🎁 Offers</h3>
+    <input type="text" id="offerText" placeholder="Offer Title" class="w-full border rounded p-2 mb-2">
+    <button onclick="addOffer()" class="bg-green-500 text-white px-4 py-2 rounded">Add Offer</button>
+    <ul id="offersList" class="mt-3 space-y-2"></ul>
+  </div>
+
+  <!-- Notifications -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+    <h3 class="text-xl font-bold mb-4">🔔 Notifications</h3>
+    <ul id="notifications" class="space-y-2"></ul>
+  </div>
+</section>
+
+<div id="toast"></div>
+
+<script>
+const BASE = "http://localhost:5000";
+const socket = io(BASE);
+
+// ✅ Auth
+const user = JSON.parse(localStorage.getItem("user"));
+const token = localStorage.getItem("token");
+if (!user || user.role !== "restaurant" || !token) {
+  alert("Unauthorized! Please login again.");
+  window.location.href = "login.html";
+}
+const restaurantId = user.restaurant_id;
+
+// ✅ Toast function
+function showToast(message, success = true) {
+  let toast = document.getElementById("toast");
+  toast.style.background = success ? "#22c55e" : "#ef4444";
+  toast.textContent = message;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 3000);
+}
+
+// ===== ORDERS =====
+async function loadOrders() {
+  let res = await fetch(`${BASE}/api/orders/restaurant/${restaurantId}`);
+  let orders = await res.json();
+  renderOrders(orders);
+}
+
+function renderOrders(orders) {
+  const list = document.getElementById("ordersList");
+  if (!orders.length) {
+    list.innerHTML = `<p class="text-gray-500">No orders yet...</p>`;
+    return;
+  }
+  list.innerHTML = orders.map(order => {
+    let itemNames = "";
+    try {
+      if (order.items) {
+        const arr = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+        if (Array.isArray(arr)) itemNames = arr.map(i => i.name || i.item_name || 'Item').join(", ");
+      }
+    } catch(_) {
+      itemNames = '';
+    }
+    const oc = order.order_id ? ` (${order.order_id})` : '';
+    return `
+      <div class="card bg-green-50 p-3 rounded shadow">
+        <p><strong>Order #${order.id}${oc}</strong> - ${itemNames}</p>
+        <p class="text-sm text-gray-600">Status: ${order.status}</p>
+        <div class="mt-2 space-x-2">
+          <button onclick="updateOrder(${order.id}, 'Accepted')" class="bg-green-600 text-white px-3 py-1 rounded">Accept</button>
+          <button onclick="updateOrder(${order.id}, 'Rejected')" class="bg-red-600 text-white px-3 py-1 rounded">Reject</button>
+          <button onclick="updateOrder(${order.id}, 'Ready')" class="bg-yellow-500 text-white px-3 py-1 rounded">Ready</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+async function updateOrder(orderId, status) {
+  const btns = document.querySelectorAll(`button[onclick*='updateOrder(${orderId}']`);
+  btns.forEach(b => b.disabled = true);
+  try {
+    let res = await fetch(`${BASE}/api/orders/update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ order_id: orderId, status })
+    });
+    await res.json();
+    showToast(`✅ Order #${orderId} ${status}!`);
+    loadOrders();
+  } catch (err) {
+    showToast("❌ Failed to update order", false);
+  } finally {
+    btns.forEach(b => b.disabled = false);
+  }
+}
+
+// ===== MENU =====
+async function loadMenu() {
+  try {
+    let res = await fetch(`${BASE}/api/menu/my`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    let data = await res.json();
+    const list = document.getElementById("menuList");
+    if (!data.length) {
+      list.innerHTML = `<p class="text-gray-500 col-span-2 text-center">No dishes added yet.</p>`;
+      return;
+    }
+    list.innerHTML = data.map(m => `
+      <div class="card bg-green-50 p-4 rounded-xl shadow flex flex-col">
+        ${m.image_url ? `<img src="${BASE}/uploads/${m.image_url}" class="h-32 w-full object-cover rounded mb-3">` : ""}
+        <h3 class="font-bold text-lg">${m.item_name}</h3>
+        <p class="text-sm text-gray-500">${m.description || ''}</p>
+        <p class="text-green-600 font-semibold">₹${m.price}</p>
+        <div class="flex gap-2 mt-3">
+          <button onclick="editItem(${m.id}, '${m.item_name}', ${m.price}, '${m.description || ''}')" class="bg-yellow-500 text-white px-3 py-1 rounded text-sm">Edit</button>
+          <button onclick="deleteItem(${m.id})" class="bg-red-500 text-white px-3 py-1 rounded text-sm">Delete</button>
+        </div>
+      </div>
+    `).join("");
+  } catch (err) {
+    console.error("Error loading menu:", err);
+  }
+}
+
+document.getElementById("menuForm").addEventListener("submit", async (e) => {
+  e.preventDefault(); // ✅ Prevent reload
+  const btn = e.target.querySelector("button[type='submit']");
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = "⏳ Adding...";
+
+  try {
+    const formData = new FormData(e.target);
+    // If user entered a custom category, overwrite the category field
+    const catSelect = document.getElementById('categorySelect');
+    const customInput = document.getElementById('categoryCustom');
+    if (catSelect && customInput && catSelect.value === 'Other' && customInput.value.trim()) {
+      formData.set('category', customInput.value.trim());
+    }
+    // Some browsers/hosts strip Authorization on multipart/form-data preflights — include token as query fallback
+    const url = `${BASE}/api/menu?token=${encodeURIComponent(token || '')}`;
+    const res = await fetch(url, {
+      method: "POST",
+      // Keep Authorization header where possible
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData
+    });
+
+    const result = await res.json();
+    if (res.ok) {
+      showToast("✅ Dish added successfully!");
+      e.target.reset();
+      loadMenu();
+    } else {
+      showToast(result.error || "Failed to add dish", false);
+    }
+  } catch (err) {
+    console.error("Error adding dish:", err);
+    showToast("❌ Server error", false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+});
+
+// ===== Veg / Non-Veg selector behavior =====
+(function(){
+  const vegBtn = document.getElementById('vegBtn');
+  const nonVegBtn = document.getElementById('nonVegBtn');
+  const isVegInput = document.getElementById('isVeg');
+  if(!vegBtn || !nonVegBtn || !isVegInput) return;
+
+  function setVeg(isVeg){
+    isVegInput.value = isVeg ? 'veg' : 'non-veg';
+    if(isVeg){
+      vegBtn.classList.remove('bg-green-100','text-green-700');
+      vegBtn.classList.add('bg-green-600','text-white');
+      nonVegBtn.classList.remove('bg-red-600','text-white');
+      nonVegBtn.classList.add('bg-red-100','text-red-700');
+    } else {
+      nonVegBtn.classList.remove('bg-red-100','text-red-700');
+      nonVegBtn.classList.add('bg-red-600','text-white');
+      vegBtn.classList.remove('bg-green-600','text-white');
+      vegBtn.classList.add('bg-green-100','text-green-700');
+    }
+  }
+
+  vegBtn.addEventListener('click', ()=> setVeg(true));
+  nonVegBtn.addEventListener('click', ()=> setVeg(false));
+
+  // initialize default
+  setVeg(true);
+})();
+
+async function deleteItem(id) {
+  if (!confirm("Are you sure to delete this item?")) return;
+  let res = await fetch(`${BASE}/api/menu/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  let result = await res.json();
+  showToast(result.message || "Deleted");
+  loadMenu();
+}
+
+// ===== OFFERS =====
+function addOffer() {
+  const offer = document.getElementById("offerText").value;
+  if (!offer) return;
+  const li = document.createElement("li");
+  li.className = "bg-green-100 p-2 rounded shadow";
+  li.textContent = offer;
+  document.getElementById("offersList").appendChild(li);
+  document.getElementById("offerText").value = "";
+  showToast("🎁 Offer added!");
+}
+
+// ===== NOTIFICATIONS =====
+socket.on(`orderForRestaurant_${restaurantId}`, (order) => {
+  const noti = document.createElement("li");
+  noti.className = "bg-green-100 p-3 rounded shadow";
+  noti.textContent = `📦 New Order #${order.id} received!`;
+  document.getElementById("notifications").prepend(noti);
+  showToast(`📦 New order #${order.id}!`);
+  loadOrders();
+});
+
+// ===== LOGOUT =====
+function logout() {
+  localStorage.removeItem("user");
+  localStorage.removeItem("token");
+  window.location.href = "login.html";
+}
+
+// ===== LOAD RESTAURANT INFO =====
+async function loadRestaurantInfo() {
+  try {
+    const res = await fetch(`${BASE}/api/restaurants/${restaurantId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const restaurant = await res.json();
+    
+    if (restaurant) {
+      document.getElementById("restaurantName").textContent = restaurant.name;
+      document.getElementById("restaurantCuisine").textContent = restaurant.cuisine || 'Multi Cuisine';
+      
+      // Update logo with restaurant image if available
+      const logoDiv = document.getElementById("restaurantLogo");
+      if (restaurant.image_url) {
+        logoDiv.innerHTML = `<img src="${BASE}/uploads/${restaurant.image_url}" class="w-full h-full object-cover rounded-xl" alt="${restaurant.name}">`;
+      } else {
+        logoDiv.innerHTML = '<span class="text-white text-xl font-bold">🍴</span>';
+      }
+      
+      // Update page title
+      document.title = `${restaurant.name} - Tindo Dashboard`;
+    }
+  } catch (err) {
+    console.error("Error loading restaurant info:", err);
+  }
+}
+
+// ===== INIT =====
+loadRestaurantInfo();
+loadOrders();
+loadMenu();
+
+// Show/hide custom category field
+const catSelectEl = document.getElementById('categorySelect');
+if (catSelectEl) {
+  catSelectEl.addEventListener('change', () => {
+    const custom = document.getElementById('categoryCustom');
+    if (catSelectEl.value === 'Other') custom.style.display = 'block'; else custom.style.display = 'none';
+  });
+}
+
+// ====== ANALYTICS DEMO ======
+new Chart(document.getElementById("ordersChart"), {
+  type: "line",
+  data: {
+    labels: ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],
+    datasets: [{
+      label: "Orders",
+      data: [12,18,25,22,30,35,28],
+      borderColor: "rgba(34,197,94,1)",
+      backgroundColor: "rgba(34,197,94,0.2)",
+      tension: 0.3,
+      fill: true
+    }]
+  }
+});
+
+new Chart(document.getElementById("revenueChart"), {
+  type: "doughnut",
+  data: {
+    labels: ["Biryani","Pizza","Shawarma","South Indian"],
+    datasets: [{
+      data: [5000,3000,2000,4000],
+      backgroundColor: ["#22c55e","#86efac","#bbf7d0","#15803d"]
+    }]
+  }
+});
+
+// Fetch and display orders for the restaurant
+async function fetchRestaurantOrders() {
+  const restaurantId = 1; // Replace with dynamic restaurant ID
+
+  try {
+    const response = await fetch(`/api/orders/restaurant/${restaurantId}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch restaurant orders');
+    }
+
+    const orders = await response.json();
+    console.log('Orders:', orders);
+
+    // Display orders dynamically (example)
+    const ordersContainer = document.getElementById('ordersContainer');
+    ordersContainer.innerHTML = orders.map(order => `
+      <div class="order">
+        <p><b>Order ID:</b> ${order.id}</p>
+        <p><b>Status:</b> ${order.status}</p>
+        <p><b>Total:</b> ₹${order.total}</p>
+      </div>
+    `).join('');
+  } catch (error) {
+    console.error('Error fetching restaurant orders:', error);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', fetchRestaurantOrders);
+</script>
+</body>
+</html>

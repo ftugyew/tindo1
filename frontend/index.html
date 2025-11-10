@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tindo – Mana Tindi, Mana App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/ui.css">
+  <script src="assets/js/redirect-to-localhost.js"></script>
+  <script src="js/wish.js" defer></script>
+  <link rel="stylesheet" href="css/animations.css">
+  <style>
+    /* Heavy hover effect for .card on the homepage: light green bg, lift and stronger shadow */
+    .card {
+      transition: transform 220ms cubic-bezier(.2,.9,.2,1), box-shadow 220ms cubic-bezier(.2,.9,.2,1), background-color 220ms ease;
+      will-change: transform, box-shadow;
+      position: relative;
+      z-index: 0;
+    }
+    .card:hover {
+      transform: translateY(-10px) scale(1.04);
+      box-shadow: 0 24px 48px rgba(16,185,129,0.12), 0 8px 20px rgba(0,0,0,0.06);
+      background-color: #f0fdf4; /* Tailwind bg-green-50 */
+      z-index: 20;
+    }
+    /* Keep inner overflow visible so scaled cards don't get clipped */
+    .card > * { overflow: visible; }
+  </style>
+  <script src="js/ui.js" defer></script>
+  <script src="js/script.js" defer></script>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-white text-gray-800 min-h-screen">
+
+<!-- Navbar -->
+<header class="bg-white/95 navbar shadow-lg sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+    <div class="flex items-center space-x-3">
+      <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
+        <span class="text-white text-xl font-bold">T</span>
+      </div>
+      <h1 class="text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent">Tindo</h1>
+    </div>
+    <nav class="space-x-8 hidden md:flex items-center">
+  <a href="#categories" class="text-gray-600 hover:text-green-600 font-medium transition-colors duration-200">Categories</a>
+  <a href="#restaurants" class="text-gray-600 hover:text-green-600 font-medium transition-colors duration-200" onclick="scrollToRestaurants(event)">Restaurants</a>
+  <a href="#offers" class="text-gray-600 hover:text-green-600 font-medium transition-colors duration-200">Offers</a>
+  <a href="#new" class="text-gray-600 hover:text-green-600 font-medium transition-colors duration-200">New</a>
+      <a href="cart.html" class="btn btn-primary relative" data-ripple>
+        🛒 Cart
+        <span id="cartCount" class="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">0</span>
+      </a>
+      <a href="login.html" class="btn btn-primary" data-ripple>Login</a>
+    </nav>
+    <div class="md:hidden">      <button class="text-gray-600 hover:text-green-600" title="Menu">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+      </button>
+    </div>
+    <!-- Theme toggle button -->
+    <button id="themeToggle" class="text-gray-600 hover:text-green-600" title="Toggle Theme">
+      <svg id="lightIcon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2a1 1 0 011 1v2a1 1 0 01-2 0V3a1 1 0 011-1zm0 18a1 1 0 011 1v2a1 1 0 01-2 0v-2a1 1 0 011-1zm10-10a1 1 0 01-1 1h-2a1 1 0 010-2h2a1 1 0 011 1zM4 12a1 1 0 01-1 1H1a1 1 0 010-2h2a1 1 0 011 1zm15.07-7.07a1 1 0 010 1.41l-1.42 1.42a1 1 0 01-1.41-1.41l1.42-1.42a1 1 0 011.41 0zM6.34 17.66a1 1 0 010 1.41l-1.42 1.42a1 1 0 01-1.41-1.41l1.42-1.42a1 1 0 011.41 0zM17.66 17.66a1 1 0 011.41 0l1.42 1.42a1 1 0 01-1.41 1.41l-1.42-1.42a1 1 0 010-1.41zM6.34 6.34a1 1 0 010 1.41L4.93 9.17a1 1 0 01-1.41-1.41L4.93 6.34a1 1 0 011.41 0z"></path>
+      </svg>
+      <svg id="darkIcon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3a9 9 0 000 18 9 9 0 000-18zm0 3a6 6 0 110 12 6 6 0 010-12z"></path>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<!-- Hero Section -->
+<section class="relative overflow-hidden text-center py-28 md:py-40" style="min-height: 70vh;">
+  <!-- 🔁 Background Slideshow -->
+  <div id="heroSlideshow" class="absolute inset-0 z-0">
+    <div class="absolute inset-0 bg-cover bg-center opacity-100 transition-opacity duration-1000"
+      style="background-image: url('assets/hero-bg.png');"></div>
+    <div class="absolute inset-0 bg-cover bg-center opacity-0 transition-opacity duration-1000"
+      style="background-image: url('assets/bg2.jpg');"></div>
+    <div class="absolute inset-0 bg-cover bg-center opacity-0 transition-opacity duration-1000"
+      style="background-image: url('assets/bg3.jpg');"></div>
+    <div class="absolute inset-0 bg-cover bg-center opacity-0 transition-opacity duration-1000"
+      style="background-image: url('assets/bg4.jpg');"></div>
+      <div class="absolute inset-0 bg-cover bg-center opacity-0 transition-opacity duration-1000"
+      style="background-image: url('assets/bg1.jpg');"></div>
+    </div> <!-- overlay -->
+  </div>
+
+  <!-- Hero Content -->
+  <div class="relative z-10 max-w-4xl mx-auto px-6 py-12 md:py-20">
+    <h2 class="text-4xl md:text-5xl font-bold text-white drop-shadow-lg mb-4 animate-fade-in">
+      🍴 Mana Tindi, Mana App
+    </h2>
+    <p class="text-lg text-white/90 mb-8 animate-fade-in-delay">
+      Order food from your favorite restaurants, delivered fast!
+    </p>
+
+    <!-- 🔍 Modern Search Bar -->
+    <div class="relative max-w-2xl mx-auto">
+      <div class="flex flex-col md:flex-row justify-center gap-3 bg-white/90 backdrop-blur-md rounded-full shadow-2xl p-3 transition-transform duration-300 hover:scale-[1.02]">
+        <input id="searchInput" type="text" placeholder="Search for biryani, dosa, or restaurants..."
+          class="search-input flex-1 px-6 py-3 rounded-full text-gray-700 outline-none focus:ring-4 focus:ring-green-400 bg-transparent placeholder-gray-500" autocomplete="off" />
+        <button id="searchBtn" class="px-6 py-3 bg-green-500 text-white font-semibold rounded-full hover:bg-green-600 transition-all duration-200 shadow-lg">
+          🔍 Search
+        </button>
+      </div>
+      <!-- Autocomplete suggestions (populated by JS) -->
+      <div id="searchSuggestions" class="hidden absolute left-0 right-0 mt-2 bg-white rounded-xl shadow-lg overflow-hidden z-50" style="max-height:320px; overflow:auto;"></div>
+    </div>
+    <!-- Inline Promo Banner (shows inside the hero section) -->
+    <div id="promoBanner" class="mt-8 rounded-xl overflow-hidden shadow-2xl hidden relative max-w-3xl mx-auto">
+      <button id="closeBannerBtn" aria-label="Close banner" class="absolute right-3 top-3 bg-white/90 text-gray-700 hover:bg-white rounded-full w-8 h-8 flex items-center justify-center shadow" title="Close">×</button>
+      <img id="promoBannerImg" alt="Promotion" class="w-full h-auto rounded-xl select-none"/>
+    </div>
+  </div>
+</section>
+
+<!-- 🧠 Slideshow Script -->
+<script>
+  const slides = document.querySelectorAll("#heroSlideshow div");
+  let current = 0;
+
+  function showNextSlide() {
+    slides[current].classList.remove("opacity-100");
+    slides[current].classList.add("opacity-0");
+
+    current = (current + 1) % slides.length;
+
+    slides[current].classList.remove("opacity-0");
+    slides[current].classList.add("opacity-100");
+  }
+
+  // Change image every 5 seconds
+  setInterval(showNextSlide, 5000);
+</script>
+
+<!-- 💫 Animations -->
+<style>
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 1.5s ease forwards;
+  }
+
+  .animate-fade-in-delay {
+    animation: fadeIn 2s ease forwards;
+  }
+</style>
+
+
+<!-- Featured Restaurants Banner -->
+
+
+<!-- Featured Restaurants Banner -->
+<section class="py-12 bg-white reveal">
+  <div class="w-full px-2 md:px-6">
+    <h2 class="text-3xl font-bold text-green-700 mb-8 text-center">🌟 Featured Restaurants</h2>
+  <div id="featured-restaurants" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <!-- Featured restaurants will be loaded here -->
+    </div>
+      <div class="text-center mt-6">
+        <a href="restaurants.html" class="inline-block bg-green-100 text-green-800 px-4 py-2 rounded-lg font-semibold hover:bg-green-200 transition">See more</a>
+      </div>
+  </div>
+</section>
+
+<!-- Food Categories -->
+<section id="categories" class="section-bg py-16 reveal">
+  <div class="w-full px-2 md:px-6">
+    <h2 class="text-3xl font-bold text-green-700 mb-12 text-center">🍲 What's on your mind?</h2>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-6">
+      <!-- Realistic GIF-based category cards -->
+  <div class="card hover-lift rounded-2xl p-6 text-center group cursor-pointer shadow-lg transition" onclick="openCategoryPage('Biryani')" data-ripple>
+        <img src="assets/biryani.gif" alt="Biryani" class="mx-auto h-20 w-20 rounded-xl object-cover mb-2 animate__animated animate__pulse" />
+        <h3 class="mt-4 text-lg font-bold text-green-700">Biryani</h3>
+        <p class="text-gray-500">Spicy, Aromatic, Rice</p>
+      </div>
+  <div class="card hover-lift rounded-2xl p-6 text-center group cursor-pointer shadow-lg transition" onclick="openCategoryPage('Pizza')" data-ripple>
+        <img src="assets/pizza.png" alt="Pizza" class="mx-auto h-20 w-20 rounded-xl object-cover mb-2 animate__animated animate__pulse" />
+        <h3 class="mt-4 text-lg font-bold text-green-700">Pizza</h3>
+        <p class="text-gray-500">Cheesy, Italian, Crust</p>
+      </div>
+  <div class="card hover-lift rounded-2xl p-6 text-center group cursor-pointer shadow-lg transition" onclick="openCategoryPage('Burger')" data-ripple>
+        <img src="assets/burger.png" alt="Burger" class="mx-auto h-20 w-20 rounded-xl object-cover mb-2 animate__animated animate__pulse" />
+        <h3 class="mt-4 text-lg font-bold text-green-700">Burger</h3>
+        <p class="text-gray-500">Juicy, American, Fast Food</p>
+      </div>
+  <div class="card hover-lift rounded-2xl p-6 text-center group cursor-pointer shadow-lg transition" onclick="openCategoryPage('Shawarma')" data-ripple>
+        <img src="assets/shewaram.png" alt="Shawarma" class="mx-auto h-20 w-20 rounded-xl object-cover mb-2 animate__animated animate__pulse" />
+        <h3 class="mt-4 text-lg font-bold text-green-700">Shawarma</h3>
+        <p class="text-gray-500">Arabic, Wrap, Grilled</p>
+      </div>
+  <div class="card hover-lift rounded-2xl p-6 text-center group cursor-pointer shadow-lg transition" onclick="openCategoryPage('Dosa')" data-ripple>
+        <img src="assets/dosa.png" alt="Dosa" class="mx-auto h-20 w-20 rounded-xl object-cover mb-2 animate__animated animate__pulse" />
+        <h3 class="mt-4 text-lg font-bold text-green-700">Dosa</h3>
+        <p class="text-gray-500">South Indian, Crispy, Savory</p>
+      </div>
+  <div class="card hover-lift rounded-2xl p-6 text-center group cursor-pointer shadow-lg transition" onclick="openCategoryPage('Puffs')" data-ripple>
+        <img src="assets/puffs.png" alt="Puffs" class="mx-auto h-20 w-20 rounded-xl object-cover mb-2 animate__animated animate__pulse" />
+        <h3 class="mt-4 text-lg font-bold text-green-700">Puffs</h3>
+        <p class="text-gray-500">Veg, Egg, Chicken</p>
+      </div>
+  <div class="card hover-lift rounded-2xl p-6 text-center group cursor-pointer shadow-lg transition" onclick="openCategoryPage('Parotta')" data-ripple>
+        <img src="assets/parotta.png" alt="Parotta" class="mx-auto h-20 w-20 rounded-xl object-cover mb-2 animate__animated animate__pulse" />
+        <h3 class="mt-4 text-lg font-bold text-green-700">Parotta</h3>
+        <p class="text-gray-500">Kerala, Ceylon, Flaky</p>
+      </div>
+        </div>
+        <p class="font-semibold text-gray-700 group-hover:text-green-600 transition-colors">South Indian</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Popular Restaurants -->
+<section id="restaurants" class="py-16 bg-white reveal">
+  <div class="w-full px-2 md:px-6">
+    <h2 id="restaurants-title" class="text-3xl font-bold text-green-700 mb-12 text-center">🔥 Top Restaurants Near You</h2>
+  <div id="restaurants-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+      <!-- Dynamic content will be loaded here -->
+    </div>
+    <div class="text-center mt-6">
+      <a href="restaurants.html" class="inline-block bg-green-100 text-green-800 px-4 py-2 rounded-lg font-semibold hover:bg-green-200 transition">See more</a>
+    </div>
+  </div>
+</section>
+
+<!-- Restaurant Dishes Modal -->
+<div id="dishesModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div class="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
+      <h3 id="modal-title" class="text-2xl font-bold text-gray-800"></h3>
+      <button onclick="closeDishesModal()" class="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+    </div>
+    <div id="dishes-content" class="p-6">
+      <!-- Dishes will be loaded here -->
+    </div>
+  </div>
+</div>
+
+<!-- Offers -->
+<section id="offers" class="hero-gradient py-16">
+ <div class="w-full px-2 md:px-6">
+    <h2 class="text-3xl font-bold text-green-800 mb-12 text-center">🎁 Best Offers Today</h2>
+    <div class="grid md:grid-cols-3 gap-8">
+  <div class="card hover-lift p-8 rounded-2xl text-center group" data-ripple>
+        <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-orange-400 to-orange-500 rounded-full flex items-center justify-center text-2xl">
+          🍛
+        </div>
+        <h3 class="text-xl font-bold text-gray-800 mb-2">50% OFF on Biryani</h3>
+        <p class="text-gray-600">Use code BIRYANI50</p>
+      </div>
+  <div class="card hover-lift p-8 rounded-2xl text-center group" data-ripple>
+        <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-red-400 to-red-500 rounded-full flex items-center justify-center text-2xl">
+          🍕
+        </div>
+        <h3 class="text-xl font-bold text-gray-800 mb-2">Buy 1 Get 1 Pizza</h3>
+        <p class="text-gray-600">Valid on all pizzas</p>
+      </div>
+  <div class="card hover-lift p-8 rounded-2xl text-center group" data-ripple>
+        <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-green-400 to-green-500 rounded-full flex items-center justify-center text-2xl">
+          🚚
+        </div>
+        <h3 class="text-xl font-bold text-gray-800 mb-2">Free Delivery above ₹199</h3>
+        <p class="text-gray-600">No delivery charges</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- New on Tindo -->
+<section id="new" class="py-16 section-bg">
+  <div class="w-full px-2 md:px-6">
+    <h2 class="text-3xl font-bold text-green-700 mb-12 text-center">🆕 New on Tindo</h2>
+    <div class="grid md:grid-cols-4 gap-6">
+      <div class="card hover-lift rounded-2xl p-6 group cursor-pointer" data-ripple>
+        <div class="h-32 bg-gradient-to-br from-amber-400 to-amber-500 rounded-xl flex items-center justify-center text-4xl mb-4">
+          ☕
+        </div>
+        <h3 class="text-lg font-bold text-gray-800 mb-2">Chai Adda</h3>
+        <p class="text-gray-600 text-sm mb-3">Tea & Snacks · 15 mins</p>
+          <button class="btn-primary w-full py-2 text-sm" data-wish>Order Now</button>
+      </div>
+      <div class="card hover-lift rounded-2xl p-6 group cursor-pointer" data-ripple>
+        <div class="h-32 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-xl flex items-center justify-center text-4xl mb-4">
+          🥐
+        </div>
+        <h3 class="text-lg font-bold text-gray-800 mb-2">Puffs Junction</h3>
+        <p class="text-gray-600 text-sm mb-3">Bakery · 20 mins</p>
+          <button class="btn-primary w-full py-2 text-sm" data-wish>Order Now</button>
+      </div>
+      <div class="card hover-lift rounded-2xl p-6 group cursor-pointer" data-ripple>
+        <div class="h-32 bg-gradient-to-br from-red-400 to-red-500 rounded-xl flex items-center justify-center text-4xl mb-4">
+          🌶️
+        </div>
+        <h3 class="text-lg font-bold text-gray-800 mb-2">Andhra Spice</h3>
+        <p class="text-gray-600 text-sm mb-3">Meals · 30 mins</p>
+          <button class="btn-primary w-full py-2 text-sm" data-wish>Order Now</button>
+      </div>
+      <div class="card hover-lift rounded-2xl p-6 group cursor-pointer" data-ripple>
+        <div class="h-32 bg-gradient-to-br from-orange-400 to-orange-500 rounded-xl flex items-center justify-center text-4xl mb-4">
+          🌯
+        </div>
+        <h3 class="text-lg font-bold text-gray-800 mb-2">Rolls King</h3>
+        <p class="text-gray-600 text-sm mb-3">Kathi Rolls · 20 mins</p>
+          <button class="btn-primary w-full py-2 text-sm" data-wish>Order Now</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- App Download -->
+<section class="hero-gradient py-16 text-center">
+  <div class="max-w-4xl mx-auto px-6">
+    <h2 class="text-3xl font-bold text-green-800 mb-4">📱 Get the Tindo App</h2>
+    <p class="text-lg text-green-700 mb-8">Order faster with our mobile app</p>
+    <div class="flex flex-col sm:flex-row justify-center gap-6">
+      <div class="bg-white rounded-2xl p-4 shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+        <div class="flex items-center space-x-3">
+          <div class="w-12 h-12 bg-black rounded-xl flex items-center justify-center">
+            <span class="text-white text-xl">📱</span>
+          </div>
+          <div class="text-left">
+            <p class="text-sm text-gray-600">Download on the</p>
+            <p class="font-bold text-gray-800">Google Play</p>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+        <div class="flex items-center space-x-3">
+          <div class="w-12 h-12 bg-black rounded-xl flex items-center justify-center">
+            <span class="text-white text-xl">🍎</span>
+          </div>
+          <div class="text-left">
+            <p class="text-sm text-gray-600">Download on the</p>
+            <p class="font-bold text-gray-800">App Store</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="bg-gradient-to-r from-gray-800 to-gray-900 text-white py-12">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="grid md:grid-cols-4 gap-8">
+      <div>
+        <div class="flex items-center space-x-2 mb-4">
+          <div class="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+            <span class="text-white text-sm font-bold">T</span>
+          </div>
+          <h3 class="text-xl font-bold">Tindo</h3>
+        </div>
+        <p class="text-gray-400">Mana Tindi, Mana App</p>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-4">Quick Links</h4>
+        <ul class="space-y-2 text-gray-400">
+          <li><a href="#categories" class="hover:text-white transition-colors">Categories</a></li>
+          <li><a href="#restaurants" class="hover:text-white transition-colors">Restaurants</a></li>
+          <li><a href="#offers" class="hover:text-white transition-colors">Offers</a></li>
+          <li><a href="login.html" class="hover:text-white transition-colors">Login</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-4">Support</h4>
+        <ul class="space-y-2 text-gray-400">
+          <li><a href="#" class="hover:text-white transition-colors">Help Center</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Contact Us</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Privacy Policy</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Terms of Service</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-4">Follow Us</h4>
+        <div class="flex space-x-4">
+          <a href="#" class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center hover:bg-green-600 transition-colors">
+            <span class="text-white">📷</span>
+          </a>
+          <a href="#" class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center hover:bg-green-600 transition-colors">
+            <span class="text-white">📘</span>
+          </a>
+          <a href="#" class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center hover:bg-green-600 transition-colors">
+            <span class="text-white">🐦</span>
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
+      <p>&copy; 2025 Tindo – Mana Tindi, Mana App. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
+<!-- Popup Banner Modal removed — using inline hero banner instead -->
+<script>
+function openCategoryPage(category) {
+  window.location.href = `category.html?name=${encodeURIComponent(category)}`;
+}
+const BASE = "http://localhost:5000";
+let allRestaurants = [];
+let userLocation = null;
+let allMenuItems = [];
+let featuredRestaurants = [];
+
+async function loadRestaurants() {
+  try {
+    const res = await fetch(`${BASE}/api/restaurants`);
+    const data = await res.json();
+    allRestaurants = data;
+    displayRestaurants(data);
+  } catch (err) {
+    console.error("Error loading restaurants:", err);
+  }
+}
+
+async function loadMenuItems() {
+  try {
+    const res = await fetch(`${BASE}/api/admin/menu`);
+    const data = await res.json();
+    allMenuItems = data;
+  } catch (err) {
+    console.error("Error loading menu items:", err);
+  }
+}
+
+async function loadFeaturedRestaurants() {
+  try {
+    console.log("Fetching featured restaurants from:", `${BASE}/api/featured-restaurants`);
+    const res = await fetch(`${BASE}/api/featured-restaurants`);
+    console.log("Response status:", res.status);
+
+    if (!res.ok) {
+      throw new Error(`Failed to fetch featured restaurants: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    console.log("Featured restaurants fetched:", data);
+    featuredRestaurants = data;
+    displayFeaturedRestaurants(data);
+  } catch (err) {
+    console.error("Error loading featured restaurants:", err);
+    const container = document.getElementById("featured-restaurants");
+    if (container) {
+      container.innerHTML = `<p class='text-red-500 text-center col-span-3'>Failed to load featured restaurants. Please try again later.</p>`;
+    }
+  }
+}
+
+async function loadTopRestaurants() {
+  try {
+    const res = await fetch(`${BASE}/api/top-restaurants`);
+    const data = await res.json();
+    topRestaurants = data;
+    displayTopRestaurants(data);
+  } catch (err) {
+    console.error("Error loading top restaurants:", err);
+  }
+}
+
+function displayTopRestaurants(top) {
+  const container = document.getElementById("top-restaurants");
+  if (!container) return;
+  if (!top.length) {
+    container.innerHTML = `<p class="text-gray-500 text-center col-span-3">No top restaurants at the moment</p>`;
+    return;
+  }
+  container.innerHTML = top.map(r => {
+    const badge = r && Number.isFinite(Number(r.position)) && Number(r.position) > 0
+      ? `<div class=\"absolute top-3 left-3 bg-blue-400 text-blue-900 px-2 py-1 rounded-full text-xs font-bold z-10\">⭐ Top #${r.position}</div>`
+      : '';
+    return `
+    <div class=\"card hover-lift rounded-2xl overflow-hidden cursor-pointer transition transform group relative reveal\" onclick=\"openRestaurant(${r.restaurant_id || r.id})\" role=\"button\" tabindex=\"0\">\n      ${badge}
+      <div class="h-48">
+        <img src="${BASE}/uploads/${r.image_url || 'default.jpg'}"
+             class="h-full w-full object-cover" alt="${r.name}">
+      </div>
+      <div class="p-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-2">${r.name}</h3>
+        <p class="text-gray-600 mb-3">${r.cuisine || 'Multi Cuisine'}</p>
+        <div class="flex items-center justify-between">
+          <span class="text-blue-600 font-semibold">⭐ ${(r.avg_rating || r.rating || '4.3')} · ${r.eta || '30'} mins</span>
+          <button class="btn btn-primary btn-sm" data-ripple>View Menu</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function displayFeaturedRestaurants(featured) {
+  const container = document.getElementById("featured-restaurants");
+  if (!container) return;
+  const items = (featured || []).slice(0,6);
+  if (!items.length) {
+    container.innerHTML = `<p class="text-gray-500 text-center col-span-3">No featured restaurants at the moment</p>`;
+    return;
+  }
+  container.innerHTML = items.map(r => {
+    const badge = r && Number.isFinite(Number(r.position)) && Number(r.position) > 0
+      ? `<div class=\"absolute top-3 left-3 bg-yellow-400 text-yellow-900 px-2 py-1 rounded-full text-xs font-bold z-10\">⭐ Featured #${r.position}</div>`
+      : '';
+    return `
+    <div class=\"card hover-lift rounded-2xl overflow-hidden cursor-pointer transition transform group relative reveal\" onclick=\"openRestaurant(${r.restaurant_id || r.id})\" role=\"button\" tabindex=\"0\">\n      ${badge}
+      <div class="h-48">
+        <img src="${BASE}/uploads/${r.image_url || 'default.jpg'}"
+             class="h-full w-full object-cover" alt="${r.name}">
+      </div>
+      <div class="p-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-2">${r.name}</h3>
+        <p class="text-gray-600 mb-3">${r.cuisine || 'Multi Cuisine'}</p>
+        <div class="flex items-center justify-between">
+          <span class="text-green-600 font-semibold">⭐ ${(r.avg_rating || r.rating || '4.3')} · ${r.eta || '30'} mins</span>
+          <button class="btn btn-primary btn-sm" data-ripple>View Menu</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function displayRestaurants(restaurants) {
+  const container = document.getElementById("restaurants-grid");
+  if (!container) return;
+
+  const items = (restaurants || []).slice(0,6);
+  if (!items.length) {
+    container.innerHTML = `<p class="text-gray-500 text-center col-span-3">No restaurants found</p>`;
+    return;
+  }
+
+  container.innerHTML = items.map(r => `
+    <div class="card hover-lift rounded-2xl overflow-hidden cursor-pointer transition transform group reveal" onclick="openRestaurant(${r.id})" data-ripple>
+      <div class="h-48 relative">
+        <img src="${BASE}/uploads/${r.image_url || 'default.jpg'}"
+             class="h-full w-full object-cover" alt="${r.name}">
+        <span class="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full md:hidden">New</span>
+      </div>
+      <div class="p-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-2">${r.name}</h3>
+        <p class="text-gray-600 mb-3">${r.cuisine || 'Multi Cuisine'}</p>
+        <div class="flex items-center justify-between">
+          <span class="text-green-600 font-semibold">⭐ ${(r.avg_rating || r.rating || '4.3')} · ${r.eta || '30'} mins · <span class="text-gray-500">2.5 km</span></span>
+          <button class="btn btn-primary btn-sm" data-ripple>View Menu</button>
+        </div>
+      </div>
+    </div>
+  `).join("");
+// Scroll to restaurants section when clicking header link
+function scrollToRestaurants(e) {
+  e.preventDefault();
+  document.getElementById('restaurants').scrollIntoView({ behavior: 'smooth' });
+}
+}
+
+async function filterByCategory(cuisine) {
+  try {
+    // Filter restaurants by cuisine
+    const filteredRestaurants = allRestaurants.filter(r => 
+      (r.cuisine && r.cuisine.toLowerCase().includes(cuisine.toLowerCase())) ||
+      (cuisine === 'Indian' && r.cuisine && r.cuisine.toLowerCase().includes('indian'))
+    );
+
+    // Update title
+    document.getElementById("restaurants-title").textContent = `🍽️ ${cuisine} Restaurants`;
+    
+    // Display filtered restaurants
+    displayRestaurants(filteredRestaurants);
+    
+    // Scroll to restaurants section
+    document.getElementById("restaurants").scrollIntoView({ behavior: 'smooth' });
+  } catch (err) {
+    console.error("Error filtering restaurants:", err);
+  }
+}
+
+async function showRestaurantDishes(restaurantId) {
+  try {
+    const restaurant = allRestaurants.find(r => r.id == restaurantId);
+    if (!restaurant) return;
+
+    // Get dishes for this restaurant
+    const dishes = allMenuItems.filter(item => item.restaurant_id == restaurantId);
+    
+    // Set modal title
+    document.getElementById("modal-title").textContent = `${restaurant.name} - Menu`;
+    
+    // Display dishes
+    const dishesContent = document.getElementById("dishes-content");
+    if (!dishes.length) {
+      dishesContent.innerHTML = `<p class="text-gray-500 text-center">No dishes available</p>`;
+    } else {
+      dishesContent.innerHTML = `
+        <div class="mb-6 p-4 bg-green-50 rounded-xl">
+          <h4 class="font-semibold text-green-800 mb-2">Restaurant Info</h4>
+          <p class="text-gray-600">${restaurant.description || 'Delicious food from our partner restaurant'}</p>
+          <p class="text-sm text-gray-500 mt-2">⏱️ ${restaurant.eta || 30} mins delivery · ⭐ ${restaurant.rating || '4.3'}</p>
+        </div>
+        <div class="grid md:grid-cols-2 gap-6">
+          ${dishes.map(dish => `
+            <div class="border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-shadow">
+              <div class="flex gap-4">
+                ${dish.image_url ? `
+                  <img src="${BASE}/uploads/${dish.image_url}" 
+                       class="w-20 h-20 object-cover rounded-lg" alt="${dish.item_name}">
+                ` : `
+                  <div class="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400">
+                    🍽️
+                  </div>
+                `}
+                <div class="flex-1">
+                  <h5 class="font-semibold text-gray-800 mb-1">${dish.item_name}</h5>
+                  <p class="text-sm text-gray-600 mb-2">${dish.description || 'Delicious dish'}</p>
+                  <div class="flex justify-between items-center">
+                    <span class="text-green-600 font-bold">₹${dish.price}</span>
+        <button onclick="addToCart('${dish.item_name}', ${dish.price}, '${dish.image_url || ''}', ${restaurantId})" 
+          class="bg-green-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-700 transition" data-wish>
+                      Add to Cart
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+    
+    // Show modal
+    document.getElementById("dishesModal").classList.remove("hidden");
+  } catch (err) {
+    console.error("Error loading restaurant dishes:", err);
+  }
+}
+
+function closeDishesModal() {
+  document.getElementById("dishesModal").classList.add("hidden");
+}
+
+function addToCart(itemName, price, imageUrl, restaurantId) {
+  let cart = JSON.parse(localStorage.getItem("tindo_cart")) || [];
+  const existing = cart.find(item => item.name === itemName);
+  
+  if (existing) {
+    existing.qty += 1;
+  } else {
+    cart.push({ 
+      name: itemName, 
+      price, 
+      image_url: imageUrl, 
+      qty: 1,
+      restaurant_id: restaurantId
+    });
+  }
+  
+  localStorage.setItem("tindo_cart", JSON.stringify(cart));
+  updateCartCount();
+  
+  // Show success message
+  alert(`${itemName} added to cart! 🛒`);
+}
+
+function openRestaurant(id) {
+  window.location.href = `restaurant.html?id=${id}`;
+}
+
+function updateCartCount() {
+  const cart = JSON.parse(localStorage.getItem("tindo_cart")) || [];
+  const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
+  document.getElementById("cartCount").textContent = totalItems;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadRestaurants();
+  loadMenuItems();
+  loadFeaturedRestaurants();
+  updateCartCount();
+  // Try showing popup banner
+  initPopupBanner();
+});
+
+// ===== Search handler: redirect to restaurant.html (restaurant match) or category.html (food match)
+function normalize(s){ return String(s || '').trim().toLowerCase(); }
+
+async function ensureDataLoaded(){
+  // Wait until restaurants and menu items are loaded (simple polling)
+  const start = Date.now();
+  while((!allRestaurants || !allRestaurants.length) && Date.now()-start < 3000){
+    await new Promise(r => setTimeout(r, 100));
+  }
+  if(!allMenuItems || !allMenuItems.length){
+    // try loading menu items if not present
+    await loadMenuItems();
+  }
+}
+
+async function performSearch(query){
+  const q = normalize(query);
+  if(!q) return;
+  await ensureDataLoaded();
+
+  // 1) Try to find restaurant by name (best exact then includes)
+  let match = allRestaurants.find(r=> normalize(r.name) === q);
+  if(!match){ match = allRestaurants.find(r=> normalize(r.name).includes(q)); }
+  if(match){
+    window.location.href = `restaurant.html?id=${match.id}`;
+    return;
+  }
+
+  // 2) Try to find a menu item by name
+  const menuMatch = (allMenuItems || []).find(m => normalize(m.item_name).includes(q));
+  if(menuMatch){
+    // Redirect to the category/search results page which will list all matching dishes across restaurants
+    window.location.href = `category.html?name=${encodeURIComponent(query)}`;
+    return;
+  }
+
+  // 3) No direct matches — redirect to category page with the query to show related items
+  window.location.href = `category.html?q=${encodeURIComponent(query)}`;
+}
+
+// Wire up search input/button
+document.addEventListener('DOMContentLoaded', ()=>{
+  const input = document.querySelector('.search-input');
+  const btn = input ? input.nextElementSibling : null;
+  if(input){
+    input.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ performSearch(input.value); } });
+  }
+  if(btn){ btn.addEventListener('click', ()=> performSearch(input.value)); }
+});
+
+// ===== Autocomplete suggestions =====
+;(function(){
+  const input = document.getElementById('searchInput');
+  const btn = document.getElementById('searchBtn');
+  const box = document.getElementById('searchSuggestions');
+  let items = [];
+  let highlighted = -1;
+
+  function buildItems(){
+    items = [];
+    (allRestaurants || []).forEach(r => items.push({ type: 'restaurant', id: r.id, label: r.name }));
+    (allMenuItems || []).forEach(m => items.push({ type: 'dish', id: m.restaurant_id, label: m.item_name }));
+  }
+
+  function debounce(fn, wait=180){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), wait); }; }
+
+  function renderSuggestions(list, q){
+    if(!list || !list.length){ box.classList.add('hidden'); box.innerHTML=''; return; }
+    box.innerHTML = list.slice(0,8).map((it, idx) => {
+      const safe = it.label.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return `<div class="px-4 py-3 hover:bg-green-50 cursor-pointer suggestion-item" data-idx="${idx}" data-type="${it.type}" data-id="${it.id}">
+                <div class="text-sm font-medium text-gray-800">${safe}</div>
+                <div class="text-xs text-gray-500">${it.type === 'restaurant' ? 'Restaurant' : 'Dish'}</div>
+              </div>`;
+    }).join('');
+    box.classList.remove('hidden'); highlighted=-1;
+    box.querySelectorAll('.suggestion-item').forEach(el=>el.addEventListener('click', onClick));
+  }
+
+  function onClick(e){
+    const el = e.currentTarget;
+    const label = el.querySelector('div').textContent;
+    const type = el.dataset.type;
+    const id = el.dataset.id;
+    if(type === 'restaurant' && id){ window.location.href = `restaurant.html?id=${id}`; return; }
+    // dish or fallback
+    if(id){ window.location.href = `restaurant.html?id=${id}`; return; }
+    window.location.href = `category.html?name=${encodeURIComponent(label)}`;
+  }
+
+  function update(){
+    const q = (input.value || '').trim().toLowerCase();
+    if(!q){ box.classList.add('hidden'); return; }
+    if(!items.length) buildItems();
+    const matches = items.filter(it => it.label && it.label.toLowerCase().includes(q));
+    renderSuggestions(matches, q);
+  }
+
+  const debounced = debounce(update, 150);
+  if(input){
+    input.addEventListener('input', debounced);
+    input.addEventListener('keydown', (e)=>{
+      const visible = !box.classList.contains('hidden');
+      const nodes = Array.from(box.querySelectorAll('.suggestion-item'));
+      if(e.key === 'ArrowDown' && visible){ e.preventDefault(); highlighted = Math.min(highlighted+1, nodes.length-1); nodes.forEach(n=>n.classList.remove('bg-green-50')); if(nodes[highlighted]) nodes[highlighted].classList.add('bg-green-50'); }
+      else if(e.key === 'ArrowUp' && visible){ e.preventDefault(); highlighted = Math.max(highlighted-1, 0); nodes.forEach(n=>n.classList.remove('bg-green-50')); if(nodes[highlighted]) nodes[highlighted].classList.add('bg-green-50'); }
+      else if(e.key === 'Enter' && visible){ e.preventDefault(); if(highlighted >=0 && nodes[highlighted]) nodes[highlighted].click(); else performSearch(input.value); }
+      else if(e.key === 'Escape'){ box.classList.add('hidden'); }
+    });
+    // click outside closes
+    document.addEventListener('click', (ev)=>{ if(!ev.target.closest('#searchSuggestions') && !ev.target.closest('#searchInput')) box.classList.add('hidden'); });
+  }
+  if(btn) btn.addEventListener('click', ()=> performSearch(input.value));
+})();
+
+// Update cart count when storage changes
+window.addEventListener("storage", updateCartCount);
+
+// Close modal when clicking outside
+document.getElementById("dishesModal").addEventListener("click", (e) => {
+  if (e.target.id === "dishesModal") {
+    closeDishesModal();
+  }
+});
+
+// Function to filter and display items based on category (renamed to avoid clashing with the simple navigator)
+async function fetchCategoryItems(category) {
+  try {
+    const res = await fetch(`${BASE}/api/menu?category=${encodeURIComponent(category)}`);
+    const items = await res.json();
+
+    // Update the restaurants section title
+    document.getElementById("restaurants-title").textContent = `${category} Items`;
+
+    // Display filtered items
+    const container = document.getElementById("restaurants-grid");
+    if (!items.length) {
+      container.innerHTML = `<p class='text-gray-500 text-center col-span-3'>No items found for ${category}</p>`;
+      return;
+    }
+
+    container.innerHTML = items.map(item => `
+      <div class="card hover-lift rounded-2xl overflow-hidden cursor-pointer transition transform group" data-ripple>
+        <div class="h-48 relative">
+          <img src="${BASE}/uploads/${item.image_url || 'default.jpg'}" class="h-full w-full object-cover" alt="${item.item_name}">
+        </div>
+        <div class="p-6">
+          <h3 class="text-xl font-bold text-gray-800 mb-2">${item.item_name}</h3>
+          <p class="text-gray-600 mb-3">${item.description || 'Delicious food'}</p>
+          <div class="flex items-center justify-between">
+            <span class="text-green-600 font-semibold">₹${item.price}</span>
+            <button class="btn btn-primary btn-sm" data-wish data-ripple onclick="addToCart('${item.item_name}', ${item.price}, '${item.image_url || ''}')">Add to Cart</button>
+          </div>
+        </div>
+      </div>
+    `).join("");
+
+    // Scroll to the restaurants section
+    document.getElementById("restaurants").scrollIntoView({ behavior: "smooth" });
+  } catch (err) {
+    console.error("Error filtering items by category:", err);
+  }
+}
+// Note: the homepage category cards use the simple `openCategoryPage()` navigator defined earlier which redirects to category.html.
+
+// Theme toggle functionality
+const themeToggle = document.getElementById('themeToggle');
+const lightIcon = document.getElementById('lightIcon');
+const darkIcon = document.getElementById('darkIcon');
+
+// Check and apply the saved theme on page load
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme === 'dark') {
+  document.documentElement.classList.add('dark');
+  lightIcon.classList.remove('hidden');
+  darkIcon.classList.add('hidden');
+} else {
+  document.documentElement.classList.remove('dark');
+  darkIcon.classList.remove('hidden');
+  lightIcon.classList.add('hidden');
+}
+
+// Toggle theme on button click
+themeToggle.addEventListener('click', () => {
+  const isDark = document.documentElement.classList.toggle('dark');
+  if (isDark) {
+    localStorage.setItem('theme', 'dark');
+    lightIcon.classList.remove('hidden');
+    darkIcon.classList.add('hidden');
+  } else {
+    localStorage.setItem('theme', 'light');
+    darkIcon.classList.remove('hidden');
+    lightIcon.classList.add('hidden');
+  }
+});
+
+// ===== Popup Banner logic =====
+async function initPopupBanner(){
+  try {
+    const res = await fetch(`${BASE}/api/banners`);
+    if(!res.ok) return; // silent
+    const banner = await res.json();
+    if(!banner || !banner.image_url) return;
+    const lastDismissed = localStorage.getItem('dismissedBannerId');
+    if(String(lastDismissed) === String(banner.id)) return; // user closed it already
+    const imgEl = document.getElementById('promoBannerImg');
+    const bannerEl = document.getElementById('promoBanner');
+    const closeBtn = document.getElementById('closeBannerBtn');
+    if(!imgEl || !bannerEl || !closeBtn) return;
+    imgEl.src = `${BASE}/uploads/${banner.image_url}`;
+    // show inline banner
+    bannerEl.classList.remove('hidden');
+    closeBtn.onclick = () => {
+      bannerEl.classList.add('hidden');
+      localStorage.setItem('dismissedBannerId', String(banner.id));
+    };
+  } catch (e) {
+    console.warn('banner load failed', e);
+  }
+}
+</script>
+
+<!-- Hero slideshow script (4 images, 5s each) -->
+<script>
+  (function(){
+    const slidePaths = [
+      'assets/hero-bg-1.png',
+      'assets/hero-bg-2.png',
+      'assets/hero-bg-3.png',
+      'assets/hero-bg-4.png'
+    ];
+    const container = document.querySelector('.hero-slides');
+    if(!container) return;
+
+    // create slide elements
+    container.innerHTML = slidePaths.map((p, i) =>
+      `<div class="slide" data-idx="${i}" style="background-image: url('${p}');"></div>`
+    ).join('');
+
+    // inject minimal CSS for slides
+    const style = document.createElement('style');
+    style.textContent = `
+      .hero-slides .slide{ position:absolute; inset:0; background-size:cover; background-position:center; background-repeat:no-repeat; opacity:0; transition:opacity 900ms ease-in-out; }
+      .hero-slides .slide.active{ opacity:1; }
+    `;
+    document.head.appendChild(style);
+
+    let idx = 0;
+    const slides = Array.from(container.querySelectorAll('.slide'));
+    if(!slides.length) return;
+    slides[0].classList.add('active');
+
+    setInterval(()=>{
+      slides[idx].classList.remove('active');
+      idx = (idx+1) % slides.length;
+      slides[idx].classList.add('active');
+    }, 5000);
+  })();
+</script>
+
+</body>
+</html>

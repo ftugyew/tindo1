@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <meta charset="UTF-8" />
+  <script src="assets/js/redirect-to-localhost.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payment – Tindo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="images/tindo-logo.png" />
+  <style>
+    body {
+      background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+      font-family: 'Poppins', sans-serif;
+    }
+    .card {
+      animation: fadeInUp 0.7s ease-in-out;
+    }
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center p-4">
+  <div class="max-w-md w-full bg-white rounded-2xl shadow-2xl p-6 card">
+    
+    <!-- Header -->
+    <header class="flex items-center justify-between p-4 bg-green-600 text-white">
+      <img src="assets/tindo-logo.png" alt="Tindo Logo" class="w-12 h-12 rounded-full">
+      <h1 class="text-xl font-bold">Tindo</h1>
+    </header>
+
+    <!-- Order Summary -->
+    <div class="border-b border-gray-200 pb-4 mb-4">
+      <h2 class="text-lg font-semibold text-gray-700 mb-2">Order Summary</h2>
+      <div class="text-gray-600 space-y-1">
+        <p><strong>Biryani (1x)</strong> — ₹180</p>
+        <p>Delivery Fee — ₹20</p>
+        <p class="font-bold text-gray-900">Total: ₹200</p>
+      </div>
+    </div>
+
+    <!-- Payment Methods -->
+    <div class="mb-6">
+      <h3 class="text-lg font-semibold text-gray-700 mb-2">Choose Payment Method</h3>
+      <form id="paymentForm" class="space-y-3">
+        <label class="flex items-center p-3 border rounded-xl cursor-pointer hover:bg-gray-50">
+          <input type="radio" name="payment" value="COD" class="mr-3">
+          <img src="https://cdn-icons-png.flaticon.com/512/2331/2331970.png" alt="COD" class="h-5 mr-2">
+          <span>Cash on Delivery (COD)</span>
+        </label>
+      </form>
+    </div>
+
+    <!-- Note -->
+    <textarea 
+      placeholder="Add delivery note (optional)" 
+      class="w-full border border-gray-200 rounded-xl p-3 mb-4 focus:ring-2 focus:ring-green-400 outline-none resize-none h-20"></textarea>
+
+    <button id="confirmPaymentBtn"
+  class="w-full bg-green-600 text-white py-3 rounded-lg text-lg font-semibold hover:bg-green-700 transition">
+  ✅ Confirm & Pay
+</button>
+
+
+
+    <!-- Secure Info -->
+    <p class="text-center text-sm text-gray-500 mt-4">
+      🔒 100% Secure Payments via Tindo / Razorpay
+    </p>
+  </div>
+
+  <script>
+    // Optional UPI handler (guarded if element not present)
+    const upiBtn = document.getElementById('sendUpiRequest');
+    if (upiBtn) {
+      upiBtn.addEventListener('click', async function() {
+        const upiRadio = document.querySelector('input[value="UPI_ID"]');
+        if (upiRadio) upiRadio.checked = true;
+        await confirmPayment();
+      });
+    }
+    // On page load, show order summary from cart
+    document.addEventListener('DOMContentLoaded', () => {
+      const cart = JSON.parse(localStorage.getItem('tindo_cart')) || [];
+      const deliveryFee = 30;
+      const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+      const total = subtotal + deliveryFee;
+      const summaryDiv = document.querySelector('.border-b .text-gray-600');
+      if (!cart.length) {
+        summaryDiv.innerHTML = '<p>Your cart is empty.</p>';
+        return;
+      }
+      summaryDiv.innerHTML = cart.map(item => `<p><strong>${item.name} (${item.qty}x)</strong> — ₹${item.price * item.qty}</p>`).join('') +
+        `<p>Delivery Fee — ₹${deliveryFee}</p><p class="font-bold text-gray-900">Total: ₹${total}</p>`;
+      document.querySelector('.w-full.bg-green-600').textContent = `Confirm & Pay ₹${total}`;
+    });
+    // Update button label with total on load
+    document.addEventListener('DOMContentLoaded', () => {
+      const cart = JSON.parse(localStorage.getItem('tindo_cart')) || [];
+      const deliveryFee = 30;
+      const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+      const total = subtotal + deliveryFee;
+      const summaryDiv = document.querySelector('.border-b .text-gray-600');
+      if (summaryDiv) {
+        if (!cart.length) {
+          summaryDiv.innerHTML = '<p>Your cart is empty.</p>';
+        } else {
+          summaryDiv.innerHTML = cart.map(item => `<p><strong>${item.name} (${item.qty}x)</strong> — ₹${item.price * item.qty}</p>`).join('') +
+            `<p>Delivery Fee — ₹${deliveryFee}</p><p class="font-bold text-gray-900">Total: ₹${total}</p>`;
+        }
+      }
+      const btn = document.getElementById('confirmPaymentBtn');
+      if (btn) btn.textContent = cart.length ? `Confirm & Pay ₹${total}` : 'Confirm & Pay';
+    });
+  </script>
+  <script>
+document.getElementById('confirmPaymentBtn').addEventListener('click', confirmPayment);
+
+async function confirmPayment() {
+  const storedUser = (()=>{ try { return JSON.parse(localStorage.getItem("user")); } catch(_) { return null; } })();
+  const user_id = (storedUser && storedUser.id) || localStorage.getItem("user_id") || 1; // fallback for now
+
+  // Prefer unified cartItems; if missing, derive from tindo_cart
+  let cartItems = JSON.parse(localStorage.getItem("cartItems") || "[]");
+  if (!cartItems.length) {
+    const tindoCart = JSON.parse(localStorage.getItem("tindo_cart") || "[]");
+    cartItems = tindoCart.map(i => ({
+      name: i.name,
+      price: i.price,
+      qty: i.qty || 1,
+      image_url: i.image_url || null,
+      restaurant_id: i.restaurant_id,
+    }));
+    if (cartItems.length) {
+      localStorage.setItem("cartItems", JSON.stringify(cartItems));
+    }
+  }
+
+  // Determine restaurant id from first item or stored selection
+  const restaurant_id = (cartItems[0] && cartItems[0].restaurant_id) || localStorage.getItem("selectedRestaurantId") || 1;
+
+  // Load selected address; if missing, fall back to last saved in addresses
+  let selectedAddress = (()=>{ try { return JSON.parse(localStorage.getItem("selectedAddress") || "{}"); } catch(_) { return {}; } })();
+  if (!selectedAddress || Object.keys(selectedAddress).length === 0) {
+    try {
+      const saved = JSON.parse(localStorage.getItem("addresses") || "[]");
+      if (Array.isArray(saved) && saved.length) {
+        selectedAddress = saved[saved.length - 1];
+        localStorage.setItem("selectedAddress", JSON.stringify(selectedAddress));
+      }
+    } catch(_) { /* ignore */ }
+  }
+  const paymentMethod = document.querySelector('input[name="payment"]:checked')?.value || "Cash";
+
+  if (!cartItems.length || !selectedAddress) {
+    alert("⚠️ Missing cart or address details!");
+    return;
+  }
+
+  const totalAmount = cartItems.reduce((sum, i) => sum + (Number(i.price) || 0) * (Number(i.qty) || 1), 0) + 30; // include delivery fee like UI
+
+  const orderData = {
+    user_id,
+    restaurant_id,
+    items: cartItems,
+    total_price: totalAmount,
+    address: [selectedAddress.house, selectedAddress.street, selectedAddress.city, selectedAddress.state, selectedAddress.pincode]
+              .filter(Boolean).join(", "),
+    lat: selectedAddress.latitude,
+    lng: selectedAddress.longitude,
+    payment_method: paymentMethod
+  };
+
+  localStorage.setItem("currentOrder", JSON.stringify(orderData));
+
+  window.location.href = "order-success.html";
+}
+</script>
+</body>
+</html>

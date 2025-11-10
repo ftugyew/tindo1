@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>FoodieX — Checkout</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/animations.css">
+  <script src="js/scripts.js" defer></script>
+</head>
+<body class="bg-green-50 page-transition">
+  <header class="bg-white p-4 shadow">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-green-600">Checkout</h1>
+      <a href="cart.html" class="text-gray-700">Back to Cart</a>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto p-6">
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="card">
+        <h3 class="font-semibold">Delivery Address</h3>
+        <input id="addr_name" placeholder="Full name" class="w-full border rounded px-3 py-2 mt-2"/>
+        <input id="addr_phone" placeholder="Phone" class="w-full border rounded px-3 py-2 mt-2"/>
+        <textarea id="addr_line" placeholder="Address" class="w-full border rounded px-3 py-2 mt-2"></textarea>
+      </div>
+
+      <div class="card">
+        <h3 class="font-semibold">Order Summary</h3>
+        <div id="checkoutItems" class="mt-3"></div>
+        <div id="checkoutTotals" class="mt-3 font-bold"></div>
+        <div class="mt-4">
+          <h4 class="font-semibold">Payment</h4>
+          <label class="block mt-2"><input type="radio" name="pay" value="cod" checked/> Cash on delivery</label>
+          <label class="block mt-2"><input type="radio" name="pay" value="razorpay" /> Razorpay (demo)</label>
+        </div>
+
+        <div class="mt-4">
+          <button class="btn btn-green" onclick="placeOrder()">Place Order</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    function renderCheckout(){
+      const cart = getCart();
+      const node = document.getElementById("checkoutItems");
+      node.innerHTML = "";
+      if(cart.length===0){ node.innerHTML="<p>Cart empty</p>"; return; }
+      cart.forEach(it=>{
+        node.innerHTML += `<div class="flex justify-between"><div>${it.name} x ${it.quantity}</div><div>₹${(it.price*it.quantity).toFixed(2)}</div></div>`;
+      });
+      const totals = calculateTotals();
+      document.getElementById("checkoutTotals").innerHTML = `Total to pay: ₹${totals.total.toFixed(2)}`;
+    }
+
+    async function placeOrder(){
+      const user = getUser();
+      if(!user){ alert("Please login first."); window.location.href="login.html"; return; }
+
+      const cart = getCart();
+      if(cart.length===0){ alert("Cart is empty"); return; }
+
+      const address = {
+        name: document.getElementById("addr_name").value.trim(),
+        phone: document.getElementById("addr_phone").value.trim(),
+        line: document.getElementById("addr_line").value.trim()
+      };
+      if(!address.name || !address.phone || !address.line){ alert("Please fill address"); return; }
+
+      const totals = calculateTotals();
+      const payload = {
+        user_id: user.id,
+        restaurant_id: cart[0].restaurant_id,
+        items: cart.map(i=>({ menu_item_id:i.menu_item_id, quantity:i.quantity, price:i.price })),
+        total_amount: totals.total,
+        address
+      };
+
+      const res = await placeOrderOnServer(payload);
+      if(res && res.orderId){
+        clearCart();
+        showToast("Order placed: #" + res.orderId, 2500);
+        // go to tracking
+        window.location.href = `tracking.html?orderId=${res.orderId}`;
+      } else {
+        alert("Order failed: " + (res.error || "unknown"));
+      }
+    }
+
+    window.onload = renderCheckout;
+  </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>FoodieX — Splash</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/animations.css">
+  <style>body{font-family:Inter,system-ui,Arial,sans-serif}</style>
+</head>
+<body class="bg-green-50 flex items-center justify-center min-h-screen">
+  <header class="flex items-center justify-between p-4 bg-green-600 text-white">
+      <img src="assets/tindo-logo.png" alt="Tindo Logo" class="w-12 h-12 rounded-full">
+      <h1 class="text-xl font-bold">Tindo</h1>
+    </header>
+
+  <div class="text-center">
+    <div class="mx-auto bg-green-500 p-6 rounded-full shadow-lg w-28 h-28 flex items-center justify-center">
+      <span class="text-4xl">🍽️</span>
+    </div>
+    <h1 class="text-3xl font-bold text-green-600 mt-4">FoodieX</h1>
+    <p class="text-gray-700 mt-2">Fresh. Hot. Near you.</p>
+
+    <div class="grid grid-cols-4 gap-3 mt-6">
+      <img class="w-20 h-20 rounded-lg object-cover bounce" src="https://source.unsplash.com/100x100/?burger" />
+      <img class="w-20 h-20 rounded-lg object-cover bounce" src="https://source.unsplash.com/100x100/?pizza" />
+      <img class="w-20 h-20 rounded-lg object-cover bounce" src="https://source.unsplash.com/100x100/?biryani" />
+      <img class="w-20 h-20 rounded-lg object-cover bounce" src="https://source.unsplash.com/100x100/?dessert" />
+    </div>
+
+    <div class="mt-6">
+      <a href="index.html" class="btn btn-green">🍽️ Order Now</a>
+    </div>
+  </div>
+
+  <script>
+    // auto redirect to index after 2.5s (user can click if they want faster)
+    setTimeout(()=>{ window.location.href="index.html"; }, 2500);
+  </script>
+</body>
+</html>

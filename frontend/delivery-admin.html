@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delivery Admin – FoodieX</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .dark { background: #111; color: #eee; }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+  <!-- Navbar -->
+  <header class="bg-red-600 text-white p-4 flex justify-between items-center">
+    <h1 class="text-xl font-bold">🚴 Delivery Admin</h1>
+    <button id="darkToggle" class="px-3 py-1 bg-black/30 rounded">🌙 Dark Mode</button>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-6 space-y-8">
+
+    <!-- Stats Cards -->
+    <section class="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div class="bg-white p-4 rounded-xl shadow text-center">
+        <p class="text-gray-500">Total Riders</p>
+        <p class="text-2xl font-bold">120</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow text-center">
+        <p class="text-gray-500">Active Deliveries</p>
+        <p class="text-2xl font-bold">42</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow text-center">
+        <p class="text-gray-500">Completed Orders</p>
+        <p class="text-2xl font-bold">2,310</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow text-center">
+        <p class="text-gray-500">Avg. Delivery Time</p>
+        <p class="text-2xl font-bold">32 mins</p>
+      </div>
+    </section>
+
+    <!-- Map -->
+    <section class="bg-white p-6 rounded-xl shadow">
+      <h2 class="text-lg font-bold mb-3">Live Riders Map</h2>
+      <div id="map" class="h-96 w-full rounded"></div>
+    </section>
+
+    <!-- Orders Table -->
+    <section class="bg-white p-6 rounded-xl shadow">
+      <h2 class="text-lg font-bold mb-3">Orders Overview</h2>
+      <input type="text" placeholder="Search by Order ID..." class="w-full px-4 py-2 border rounded mb-4">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="bg-gray-200">
+            <th class="p-2">Order ID</th>
+            <th class="p-2">Restaurant</th>
+            <th class="p-2">Customer</th>
+            <th class="p-2">Rider</th>
+            <th class="p-2">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-t">
+            <td class="p-2">ORD101</td>
+            <td class="p-2">Spicy Treats</td>
+            <td class="p-2">Ravi Kumar</td>
+            <td class="p-2">John (R23)</td>
+            <td class="p-2 text-green-600 font-semibold">Delivered</td>
+          </tr>
+          <tr class="border-t">
+            <td class="p-2">ORD102</td>
+            <td class="p-2">Cafe Delight</td>
+            <td class="p-2">Niharika</td>
+            <td class="p-2">Anil (R12)</td>
+            <td class="p-2 text-yellow-600 font-semibold">On the Way</td>
+          </tr>
+          <tr class="border-t">
+            <td class="p-2">ORD103</td>
+            <td class="p-2">Urban Bites</td>
+            <td class="p-2">Sumanth</td>
+            <td class="p-2">Kiran (R34)</td>
+            <td class="p-2 text-red-600 font-semibold">Pending</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Riders Table -->
+    <section class="bg-white p-6 rounded-xl shadow">
+      <h2 class="text-lg font-bold mb-3">Riders Overview</h2>
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="bg-gray-200">
+            <th class="p-2">Rider ID</th>
+            <th class="p-2">Name</th>
+            <th class="p-2">Status</th>
+            <th class="p-2">Active Orders</th>
+            <th class="p-2">Last Seen</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-t">
+            <td class="p-2">R23</td>
+            <td class="p-2">John</td>
+            <td class="p-2 text-green-600 font-semibold">Online</td>
+            <td class="p-2">2</td>
+            <td class="p-2">2 mins ago</td>
+          </tr>
+          <tr class="border-t">
+            <td class="p-2">R12</td>
+            <td class="p-2">Anil</td>
+            <td class="p-2 text-green-600 font-semibold">Online</td>
+            <td class="p-2">1</td>
+            <td class="p-2">5 mins ago</td>
+          </tr>
+          <tr class="border-t">
+            <td class="p-2">R34</td>
+            <td class="p-2">Kiran</td>
+            <td class="p-2 text-red-600 font-semibold">Offline</td>
+            <td class="p-2">0</td>
+            <td class="p-2">30 mins ago</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    // Dark Mode
+    document.getElementById("darkToggle").addEventListener("click", () => {
+      document.body.classList.toggle("dark");
+    });
+
+    // Map
+    var map = L.map('map').setView([17.3850, 78.4867], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Example Rider Locations
+    var riders = [
+      { id: "R23", name: "John", coords: [17.3850, 78.4867], status: "On Delivery" },
+      { id: "R12", name: "Anil", coords: [17.3950, 78.5000], status: "On Delivery" },
+      { id: "R34", name: "Kiran", coords: [17.3750, 78.4800], status: "Offline" }
+    ];
+
+    riders.forEach(r => {
+      let marker = L.marker(r.coords).addTo(map);
+      marker.bindPopup(`<b>${r.name}</b><br>Status: ${r.status}<br>ID: ${r.id}`);
+    });
+  </script>
+</body>
+</html>

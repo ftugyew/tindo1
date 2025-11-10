@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Success – FoodieX</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="assets/js/redirect-to-localhost.js"></script>
+  <link rel="stylesheet" href="css/ui.css">
+  <script src="js/ui.js" defer></script>
+  <script src="js/review.js" defer></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    /* Success animation */
+    .checkmark {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: block;
+      stroke-width: 2;
+      stroke: #4ade80;
+      stroke-miterlimit: 10;
+      margin: 10% auto;
+      box-shadow: inset 0px 0px 0px 80px #4ade80; /* Ensure green circle fills */
+      animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+    }
+    .checkmark__circle {
+      stroke-dasharray: 166;
+      stroke-dashoffset: 166;
+      stroke-width: 2;
+      stroke-miterlimit: 10;
+      stroke: #4ade80;
+      fill: none;
+      animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    }
+    .checkmark__check {
+      transform-origin: 50% 50%;
+      stroke-dasharray: 48;
+      stroke-dashoffset: 48;
+      animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) .8s forwards;
+    }
+    @keyframes stroke {
+      100% { stroke-dashoffset: 0; }
+    }
+    @keyframes scale {
+      0%, 100% { transform: none; }
+      50% { transform: scale3d(1.1, 1.1, 1); }
+    }
+    @keyframes fill {
+      100% { box-shadow: inset 0px 0px 0px 80px #4ade80; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 flex items-center justify-center min-h-screen">
+
+  <header class="flex items-center justify-between p-4 bg-green-600 text-white">
+    <img src="assets/tindo-logo.png" alt="Tindo Logo" class="w-12 h-12 rounded-full">
+    <h1 class="text-xl font-bold">Tindo</h1>
+  </header>
+
+  <div class="bg-white shadow-lg rounded-xl p-8 max-w-md text-center">
+    <!-- Success Tick -->
+    <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+      <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+      <path class="checkmark__check" fill="none" d="M14 27l7 7 16-16"/>
+    </svg>
+
+    <h1 class="text-2xl font-bold text-green-600 mb-2">Order Placed Successfully 🎉</h1>
+    <p class="text-gray-600 mb-4">Thank you for ordering with <b>Tindo</b>. Your delicious food is on the way!</p>
+
+    <!-- Updated Order ID and Payment Type Display -->
+    <div class="bg-gray-100 rounded-lg p-4 text-left mb-4">
+      <p><b>Order Code:</b> <span id="orderCode">-</span></p>
+      <p><b>Order ID:</b> <span id="orderId">-</span></p>
+      <p><b>Estimated Delivery:</b> <span id="eta">35 mins</span></p>
+      <p><b>Payment:</b> <span id="paymentType">-</span></p>
+    </div>
+
+    <!-- Buttons -->
+    <div class="flex space-x-4 mt-4">
+      <a id="trackBtn" href="#" class="flex-1 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Track Order</a>
+      <a href="index.html" class="flex-1 px-4 py-2 bg-gray-300 text-black rounded hover:bg-gray-400">Back Home</a>
+    </div>
+    <div class="mt-5 text-left bg-green-50 border border-green-200 rounded-xl p-4">
+      <p class="text-sm text-green-800">After your order is delivered, please share your feedback.</p>
+      <button id="rateNowBtn" class="btn btn-outline btn-sm mt-2" data-ripple>Rate Order</button>
+    </div>
+  </div>
+
+  <script>
+const BASE = "http://localhost:5000";
+document.addEventListener("DOMContentLoaded", async () => {
+  const orderData = JSON.parse(localStorage.getItem("currentOrder"));
+  if (!orderData) {
+    alert("⚠️ No order details found!");
+    return;
+  }
+
+  try {
+  const res = await fetch(`${BASE}/api/orders/new`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(orderData)
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById("orderId").textContent = data.order_id;
+      if (data.order_code) document.getElementById("orderCode").textContent = data.order_code;
+      document.getElementById("paymentType").textContent = orderData.payment_method || 'Cash';
+      // persist for tracking page
+      localStorage.setItem('last_order_id', String(data.order_id));
+      localStorage.setItem('last_order_restaurant', String(orderData.restaurant_id));
+      const track = document.getElementById('trackBtn');
+      track.href = `tracking.html?orderId=${encodeURIComponent(data.order_id)}`;
+      localStorage.removeItem("currentOrder");
+      localStorage.removeItem("cartItems");
+      localStorage.removeItem("tindo_cart");
+    } else {
+      alert("❌ Failed to save order: " + (data.error || "Unknown error"));
+    }
+  } catch (err) {
+    alert("❌ Unable to connect to server.");
+    console.error(err);
+  }
+});
+
+// Allow manual rating trigger (user can rate after delivery)
+document.addEventListener('DOMContentLoaded', ()=>{
+  const rateBtn = document.getElementById('rateNowBtn');
+  if (rateBtn){
+    rateBtn.addEventListener('click', ()=>{
+      const oid = localStorage.getItem('last_order_id');
+      const rid = localStorage.getItem('last_order_restaurant');
+      if (!oid) { alert('No recent order found'); return; }
+      window.TindoReview && window.TindoReview.show(oid, rid);
+    });
+  }
+});
+</script>
+
+</body>
+</html>

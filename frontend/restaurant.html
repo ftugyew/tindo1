@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tindo – Restaurant Menu</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/ui.css">
+  <script src="assets/js/redirect-to-localhost.js"></script>
+  <script src="js/wish.js" defer></script>
+  <link rel="stylesheet" href="css/animations.css">
+  <script src="js/ui.js" defer></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* 👍 Thumb burst animation */
+    @keyframes thumb-burst {
+      0% { transform: translate(0,0) scale(0.6); opacity: 0; }
+      40% { transform: translate(6px,-8px) scale(1.1); opacity: 1; }
+      100% { transform: translate(12px,-16px) scale(0.9); opacity: 0; }
+    }
+    .thumb-float {
+      animation: thumb-burst 650ms ease-out forwards;
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+  <!-- Header -->
+  <header class="bg-green-600 text-white p-4 shadow-md flex justify-between items-center navbar">
+    <div class="flex items-center gap-2">
+      <img src="assets/tindo-logo.png" alt="Tindo Logo" class="w-12 h-12 rounded-full">
+      <h1 class="text-2xl font-bold">
+        <i data-lucide="utensils"></i> Tindo Menu
+      </h1>
+    </div>
+    <div class="flex gap-3">
+      <a href="cart.html" class="btn btn-ghost bg-white text-green-700 hover:bg-green-100" data-ripple>
+        <i data-lucide="shopping-cart"></i> Cart
+      </a>
+      <a href="index.html" class="btn btn-outline border-white text-white hover:bg-green-500" data-ripple>
+        <i data-lucide="home"></i> Home
+      </a>
+    </div>
+  </header>
+
+  <!-- Restaurant Banner -->
+  <section class="max-w-5xl mx-auto mt-8 bg-white shadow-lg rounded-2xl overflow-hidden flex flex-col md:flex-row items-center p-6">
+    <img id="restaurant-image" src="images/placeholder.jpg" alt="Restaurant" class="w-full md:w-1/3 rounded-xl object-cover">
+    <div class="md:ml-6 mt-4 md:mt-0">
+      <h2 id="restaurant-name" class="text-3xl font-bold text-green-700 mb-2">Restaurant Name</h2>
+      <p id="restaurant-desc" class="text-gray-600 mb-3">Authentic taste, hot and fresh meals served with love 💚</p>
+      <p id="restaurant-eta" class="text-sm text-gray-500">⏱️ 25-30 mins delivery</p>
+    </div>
+  </section>
+
+  <!-- Menu Section -->
+  <main class="max-w-5xl mx-auto mt-10 px-4">
+    <h3 class="text-2xl font-semibold text-green-700 mb-6 flex items-center gap-2">
+      <i data-lucide="list"></i> Menu
+    </h3>
+    <!-- Veg / Non-Veg segmented toggle (modern) -->
+    <div class="mb-6">
+      <div id="menuFilterControl" class="relative inline-flex bg-gray-100 rounded-full p-1" role="tablist" aria-label="Menu filter">
+        <div class="seg-item relative z-10 px-4 py-2 rounded-full text-sm text-gray-700 cursor-pointer select-none" data-value="all">All</div>
+        <div class="seg-item relative z-10 px-4 py-2 rounded-full text-sm text-gray-700 cursor-pointer select-none" data-value="veg">🥬 Veg</div>
+        <div class="seg-item relative z-10 px-4 py-2 rounded-full text-sm text-gray-700 cursor-pointer select-none" data-value="non-veg">🍗 Non‑Veg</div>
+        <div id="segIndicator" class="absolute top-1 bottom-1 left-1 rounded-full bg-white shadow transition-all" style="width:0; transform:translateX(0); z-index:0;"></div>
+      </div>
+    </div>
+
+  <div id="menu-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+    <!-- Empty Message -->
+    <div id="no-dishes" class="text-center text-gray-500 text-lg py-10 hidden">
+      No dishes available yet 🍽️
+    </div>
+
+  </main>
+
+  <!-- Floating Cart Button -> opens right-side cart panel -->
+  <button id="open-cart-btn" aria-label="Open cart" class="fixed bottom-5 right-5 btn btn-primary fab rounded-full z-50 shadow-lg" data-ripple>
+    <i data-lucide="shopping-bag"></i>
+  </button>
+
+  <!-- Right-side Cart Panel -->
+  <aside id="cart-panel" class="fixed top-0 right-0 h-full w-0 overflow-hidden bg-white shadow-xl z-40 transform transition-width duration-300 ease-in-out">
+    <div class="h-full flex flex-col">
+      <div class="flex items-center justify-between p-4 border-b">
+        <h3 class="text-lg font-bold text-green-700">Your Cart</h3>
+        <div class="flex items-center gap-2">
+          <button id="collapse-cart" class="text-gray-500 hover:text-gray-800 px-2">◀</button>
+        </div>
+      </div>
+      <div id="cart-panel-content" class="p-4 overflow-auto flex-1 space-y-4"></div>
+      <div id="cart-panel-summary" class="p-4 border-t hidden">
+        <div class="flex justify-between text-lg mb-2">
+          <span>Subtotal:</span>
+          <span id="panel-subtotal" class="font-semibold">₹0</span>
+        </div>
+        <div class="flex justify-between text-lg mb-4">
+          <span>Delivery Fee:</span>
+          <span id="panel-delivery" class="font-semibold text-green-700">₹30</span>
+        </div>
+        <div class="flex justify-between text-xl font-bold border-t pt-3">
+          <span>Total:</span>
+          <span id="panel-total">₹0</span>
+        </div>
+        <div class="mt-4 flex gap-3">
+          <button id="panel-proceed" class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition">Proceed</button>
+          <button id="panel-clear" class="flex-1 border-2 border-green-600 text-green-700 py-2 rounded-lg hover:bg-green-50 transition">Clear</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <style>
+    /* Cart panel width transition helper */
+    #cart-panel.open { width: 360px; }
+    @media (max-width: 640px) { #cart-panel.open { width: 100%; } }
+    /* Small hover affordance for open button */
+    #open-cart-btn:hover { transform: translateY(-3px); transition: transform 120ms; }
+    /* Hover buttons inside cart items */
+    .cart-item:hover .hover-controls { opacity: 1; transform: translateX(0); }
+    .hover-controls { opacity: 0; transform: translateX(6px); transition: all 160ms ease; }
+  </style>
+
+  <!-- Footer -->
+  <footer class="text-center mt-16 py-6 bg-gray-100 text-gray-500 text-sm">
+    © 2025 Tindo – Mana Tindi, Mana App
+  </footer>
+
+  <script>
+    const BASE = "http://localhost:5000";
+    lucide.createIcons();
+
+    const restaurantId = new URLSearchParams(window.location.search).get('id');
+    console.log('Debug: restaurantId from URL =', restaurantId);
+
+    // Validate restaurantId before making API calls
+    if (!restaurantId) {
+      console.error("Error: Missing restaurantId in URL");
+      document.getElementById('no-dishes').textContent = "Invalid restaurant ID 😔";
+      document.getElementById('no-dishes').classList.remove('hidden');
+    } else {
+      // ===== Fetch restaurant info =====
+  fetch(`${BASE}/api/restaurants`)
+        .then(res => res.json())
+        .then(restaurants => {
+          const rest = restaurants.find(r => r.id == restaurantId);
+          if (rest) {
+            document.getElementById('restaurant-name').textContent = rest.name;
+            document.getElementById('restaurant-desc').textContent = rest.description || 'Delicious food from Tindo partner restaurant 🍴';
+            document.getElementById('restaurant-eta').textContent = `⏱️ ${rest.eta || 30} mins delivery`;
+            document.getElementById('restaurant-image').src = rest.image_url?.startsWith('http')
+              ? rest.image_url
+              : `${BASE}/uploads/${rest.image_url}`;
+          } else {
+            console.error("Error: Restaurant not found");
+            document.getElementById('no-dishes').textContent = "Restaurant not found 😔";
+            document.getElementById('no-dishes').classList.remove('hidden');
+          }
+        })
+        .catch(err => {
+          console.error("Error fetching restaurant info:", err);
+          document.getElementById('no-dishes').textContent = "Failed to load restaurant info 😔";
+          document.getElementById('no-dishes').classList.remove('hidden');
+        });
+
+      // ===== Fetch menu for this restaurant =====
+      console.log("Debug: Fetching menu for restaurantId =", restaurantId);
+
+      // Handle non-JSON responses gracefully
+  fetch(`${BASE}/api/menu/by-restaurant/${restaurantId}`)
+        .then(res => {
+          console.log("Debug: Menu API response status =", res.status);
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then(dishes => {
+          console.log("Debug: Dishes fetched =", dishes);
+          // store fetched dishes and render with current filter
+          window.__restaurantDishes = dishes || [];
+          window.__menuIndex = window.__menuIndex || {};
+          // build index for quick lookups
+          (window.__restaurantDishes || []).forEach(d => {
+            const id = d.id;
+            window.__menuIndex[id] = { name: d.item_name, price: Number(d.price), image_url: d.image_url || '', restaurant_id: Number(restaurantId) };
+          });
+          renderMenu();
+        })
+        .catch(err => {
+          console.error("Error fetching menu:", err);
+          document.getElementById('no-dishes').textContent = "Failed to load menu 😔";
+          document.getElementById('no-dishes').classList.remove('hidden');
+        });
+    }
+
+    function addToCartUI(dishId) {
+      const meta = (window.__menuIndex && window.__menuIndex[dishId]) || null;
+      if (!meta) return;
+      // Update cart (single restaurant flow honored elsewhere)
+      let cart = JSON.parse(localStorage.getItem('tindo_cart') || '[]');
+      let existing = cart.find(i => i.name === meta.name && i.restaurant_id === meta.restaurant_id);
+      if (existing) {
+        existing.qty = (existing.qty || 0) + 1;
+      } else {
+        existing = { name: meta.name, price: meta.price, image_url: meta.image_url, restaurant_id: meta.restaurant_id, qty: 1 };
+        cart.push(existing);
+      }
+      localStorage.setItem('tindo_cart', JSON.stringify(cart));
+
+      // UI: change button label, show qty row, animate thumb
+      const btn = document.getElementById(`add-btn-${dishId}`);
+      const qtyRow = document.getElementById(`qty-row-${dishId}`);
+      const qtyEl = document.getElementById(`qty-${dishId}`);
+      if (btn) {
+        const lbl = btn.querySelector('.btn-label');
+        if (lbl) lbl.textContent = 'Added to Cart';
+        // thumb animation element
+        const span = document.createElement('span');
+        span.textContent = '👍';
+        span.className = 'thumb-float absolute right-3 -top-2 text-xl';
+        btn.appendChild(span);
+        setTimeout(() => { if (span && span.parentNode) span.parentNode.removeChild(span); }, 700);
+      }
+      if (qtyRow) qtyRow.classList.remove('hidden');
+      if (qtyEl) qtyEl.textContent = String(existing.qty || 1);
+    }
+
+    function changeQtyUI(dishId, delta) {
+      const meta = (window.__menuIndex && window.__menuIndex[dishId]) || null;
+      if (!meta) return;
+      let cart = JSON.parse(localStorage.getItem('tindo_cart') || '[]');
+      const idx = cart.findIndex(i => i.name === meta.name && i.restaurant_id === meta.restaurant_id);
+      if (idx === -1) {
+        if (delta > 0) {
+          cart.push({ name: meta.name, price: meta.price, image_url: meta.image_url, restaurant_id: meta.restaurant_id, qty: 1 });
+        }
+      } else {
+        cart[idx].qty = Math.max(0, (cart[idx].qty || 0) + delta);
+        if (cart[idx].qty === 0) cart.splice(idx, 1);
+      }
+      localStorage.setItem('tindo_cart', JSON.stringify(cart));
+      // Update UI
+      const qtyRow = document.getElementById(`qty-row-${dishId}`);
+      const qtyEl = document.getElementById(`qty-${dishId}`);
+      const qtyVal = (cart.find(i => i.name === meta.name && i.restaurant_id === meta.restaurant_id) || {}).qty || 0;
+      if (qtyEl) qtyEl.textContent = String(qtyVal);
+      if (qtyRow && qtyVal <= 0) qtyRow.classList.add('hidden');
+    }
+
+    // ❤️ Like
+    function likeDish(btn) {
+      btn.classList.toggle('text-red-500');
+      btn.classList.toggle('text-gray-400');
+    }
+
+    // 👁️ View Details Popup
+    function viewDetails(name, desc, price, img) {
+  const modal = document.createElement('div');
+      modal.className = "fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50";
+      modal.innerHTML = `
+        <div class="bg-white p-6 rounded-2xl shadow-xl max-w-sm text-center relative">
+          <img src="${BASE}/uploads/${img}" class="w-full h-48 object-cover rounded-xl mb-3">
+          <h3 class="text-xl font-bold text-green-700 mb-1">${name}</h3>
+          <p class="text-gray-600 mb-2">${desc || ''}</p>
+          <p class="text-green-700 font-bold text-lg mb-4">₹${price}</p>
+          <button onclick="this.parentElement.parentElement.remove()" class="bg-green-600 text-white px-6 py-2 rounded-xl hover:bg-green-700 transition">Close</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    // Remove Proceed to Payment button
+    const proceedToPaymentBtn = document.querySelector('button.bg-green-600.text-white.px-5.py-3.rounded-xl.hover\:bg-green-700.transition.w-full.mt-4');
+    if (proceedToPaymentBtn) proceedToPaymentBtn.remove();
+
+    // ===== Right-side Cart Panel Logic =====
+    const CART_KEY = 'tindo_cart';
+    const openCartBtn = document.getElementById('open-cart-btn');
+    const cartPanel = document.getElementById('cart-panel');
+    const collapseCart = document.getElementById('collapse-cart');
+    const cartPanelContent = document.getElementById('cart-panel-content');
+    const panelSubtotal = document.getElementById('panel-subtotal');
+    const panelTotal = document.getElementById('panel-total');
+    const panelSummary = document.getElementById('cart-panel-summary');
+    const panelProceed = document.getElementById('panel-proceed');
+    const panelClear = document.getElementById('panel-clear');
+
+    function openCartPanel() {
+      cartPanel.classList.add('open');
+      // ensure content is fresh
+      renderCartPanel();
+    }
+    function closeCartPanel() {
+      cartPanel.classList.remove('open');
+    }
+    openCartBtn.addEventListener('click', () => {
+      if (cartPanel.classList.contains('open')) closeCartPanel(); else openCartPanel();
+    });
+    collapseCart.addEventListener('click', closeCartPanel);
+
+    function getCart() {
+      return JSON.parse(localStorage.getItem(CART_KEY) || '[]');
+    }
+
+    function renderCartPanel() {
+      const cart = getCart();
+      cartPanelContent.innerHTML = '';
+      if (!cart.length) {
+        cartPanelContent.innerHTML = `<div class="p-6 text-center text-gray-500">Your cart is empty 🍽️<br><a href=\"#\" onclick=\"closeCartPanel()\" class=\"text-green-600 underline mt-3 inline-block\">Continue shopping</a></div>`;
+        panelSummary.classList.add('hidden');
+        return;
+      }
+      panelSummary.classList.remove('hidden');
+      let subtotal = 0;
+      cart.forEach((item, idx) => {
+        subtotal += item.price * item.qty;
+        const node = document.createElement('div');
+        node.className = 'cart-item flex items-center justify-between gap-3 p-3 rounded-lg border bg-gray-50';
+        node.innerHTML = `
+          <div class="flex items-center gap-3">
+            <img src="${BASE}/uploads/${item.image_url}" class="w-14 h-14 object-cover rounded-lg border" alt="${item.name}">
+            <div>
+              <div class="font-semibold text-green-700">${item.name}</div>
+              <div class="text-sm text-gray-500">₹${item.price} × ${item.qty}</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="hover-controls flex items-center gap-2">
+              <button onclick="panelChangeQty(${idx}, -1)" class="w-8 h-8 rounded-full bg-green-100 hover:bg-green-200 text-green-700">−</button>
+              <button onclick="panelChangeQty(${idx}, 1)" class="w-8 h-8 rounded-full bg-green-100 hover:bg-green-200 text-green-700">+</button>
+              <button onclick="panelRemoveItem(${idx})" class="text-red-500 hover:text-red-700">✖</button>
+            </div>
+          </div>
+        `;
+        cartPanelContent.appendChild(node);
+      });
+      panelSubtotal.textContent = `₹${subtotal}`;
+      panelTotal.textContent = `₹${subtotal + 30}`;
+    }
+
+    window.panelChangeQty = function(index, delta) {
+      const cart = getCart();
+      if (!cart[index]) return;
+      cart[index].qty = Math.max(0, (cart[index].qty || 0) + delta);
+      if (cart[index].qty === 0) cart.splice(index, 1);
+      localStorage.setItem(CART_KEY, JSON.stringify(cart));
+      renderCartPanel();
+      // Also update dish buttons UI (if present)
+      syncMenuButtons();
+    }
+
+    window.panelRemoveItem = function(index) {
+      const cart = getCart();
+      if (!cart[index]) return;
+      cart.splice(index, 1);
+      localStorage.setItem(CART_KEY, JSON.stringify(cart));
+      renderCartPanel();
+      syncMenuButtons();
+    }
+
+    panelClear.addEventListener('click', () => {
+      localStorage.removeItem(CART_KEY);
+      renderCartPanel();
+      syncMenuButtons();
+    });
+
+    panelProceed.addEventListener('click', () => {
+      const cart = getCart();
+      if (!cart.length) return alert('Your cart is empty!');
+      // reuse existing proceed behavior
+      localStorage.setItem('cartItems', JSON.stringify(cart));
+      localStorage.setItem('selectedRestaurantId', cart[0]?.restaurant_id || restaurantId);
+      window.location.href = 'user-address.html';
+    });
+
+    // Keep menu buttons' state in sync with panel changes
+    function syncMenuButtons() {
+      const cart = getCart();
+      document.querySelectorAll('[id^="add-btn-"]').forEach(btn => {
+        const id = Number(btn.id.replace('add-btn-',''));
+        const meta = window.__menuIndex && window.__menuIndex[id];
+        if (!meta) return;
+        const exists = cart.find(i => i.name === meta.name && i.restaurant_id === meta.restaurant_id);
+        const lbl = btn.querySelector('.btn-label');
+        const qtyRow = document.getElementById(`qty-row-${id}`);
+        const qtyEl = document.getElementById(`qty-${id}`);
+        if (exists) {
+          if (lbl) lbl.textContent = 'Added to Cart';
+          if (qtyRow) qtyRow.classList.remove('hidden');
+          if (qtyEl) qtyEl.textContent = String(exists.qty);
+        } else {
+          if (lbl) lbl.textContent = 'Add to Cart';
+          if (qtyRow) qtyRow.classList.add('hidden');
+        }
+      });
+    }
+
+    // Render panel on load (but keep closed)
+    document.addEventListener('DOMContentLoaded', () => { renderCartPanel(); syncMenuButtons(); });
+
+    // ===== Menu render + veg/non-veg filter =====
+    // helper to determine if item is veg
+    function isVegItem(dish){
+      if(!dish) return false;
+      const v = dish.is_veg ?? dish.isVeg ?? dish.veg ?? dish.type ?? dish.category ?? '';
+      if(typeof v === 'boolean') return v === true;
+      if(typeof v === 'number') return v === 1;
+      return String(v).toLowerCase().includes('veg') && !String(v).toLowerCase().includes('non');
+    }
+
+    // render menu based on window.__menuFilter ('all'|'veg'|'non-veg')
+    window.__menuFilter = window.__menuFilter || 'all';
+    function renderMenu(){
+      const menuList = document.getElementById('menu-list');
+      const emptyMsg = document.getElementById('no-dishes');
+      menuList.innerHTML = '';
+      const all = window.__restaurantDishes || [];
+      const filtered = all.filter(d => {
+        if(!d) return false;
+        if(window.__menuFilter === 'all') return true;
+        if(window.__menuFilter === 'veg') return isVegItem(d);
+        if(window.__menuFilter === 'non-veg') return !isVegItem(d);
+        return true;
+      });
+      if(!filtered.length){
+        emptyMsg.textContent = "No dishes available yet 🍽️";
+        emptyMsg.classList.remove('hidden');
+        return;
+      }
+      emptyMsg.classList.add('hidden');
+      filtered.forEach(dish => {
+        const card = document.createElement('div');
+        card.className = "card hover-lift p-4 shadow transition border border-gray-100 relative group reveal";
+        const did = dish.id;
+        // ensure menu index exists
+        window.__menuIndex = window.__menuIndex || {};
+        window.__menuIndex[did] = { name: dish.item_name, price: Number(dish.price), image_url: dish.image_url || '', restaurant_id: Number(restaurantId) };
+        // veg badge
+        const vegBadge = isVegItem(dish) ? `<span class="absolute top-3 right-3 bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">🥬 Veg</span>` : `<span class="absolute top-3 right-3 bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs">🍗 Non‑Veg</span>`;
+        card.innerHTML = `
+          ${vegBadge}
+          ${dish.image_url ? `<img src="${BASE}/uploads/${dish.image_url}" class="w-full h-44 object-cover rounded-xl mb-3">` : `<div class="w-full h-44 bg-gray-200 rounded-xl mb-3 flex items-center justify-center text-gray-500">No Image</div>`}
+          <h4 class="text-lg font-semibold text-green-700">${dish.item_name}</h4>
+          <p class="text-gray-600 mb-2">${dish.description || ''}</p>
+          <p class="text-green-700 font-bold text-lg mb-2">₹${dish.price}</p>
+          <button id="add-btn-${did}" onclick="addToCartUI(${did})" data-wish data-ripple class="btn btn-primary w-full relative flex items-center justify-center gap-2">
+            <span class="btn-label">Add to Cart</span>
+          </button>
+          <div id="qty-row-${did}" class="hidden mt-3">
+            <div class="flex items-center justify-between">
+              <div class="inline-flex items-center gap-3">
+                <button class="w-9 h-9 rounded-full border text-green-700 border-green-200 hover:bg-green-50" onclick="changeQtyUI(${did}, -1)">−</button>
+                <span id="qty-${did}" class="min-w-6 text-center font-semibold">1</span>
+                <button class="w-9 h-9 rounded-full border text-green-700 border-green-200 hover:bg-green-50" onclick="changeQtyUI(${did}, 1)">+</button>
+              </div>
+              <div class="text-sm text-gray-500">Updated in cart</div>
+            </div>
+          </div>
+        `;
+        menuList.appendChild(card);
+      });
+      // sync cart state
+      syncMenuButtons();
+    }
+
+    // setup segmented filter control (modern toggle)
+    (function(){
+      const ctrl = document.getElementById('menuFilterControl');
+      const indicator = document.getElementById('segIndicator');
+      if(!ctrl || !indicator) return;
+      const items = Array.from(ctrl.querySelectorAll('[data-value]'));
+
+      function setFilter(f){
+        window.__menuFilter = f;
+        const parentRect = ctrl.getBoundingClientRect();
+        const selected = items.find(it => it.dataset.value === f) || items[0];
+        const selRect = selected.getBoundingClientRect();
+        // move indicator
+        indicator.style.width = `${selRect.width}px`;
+        indicator.style.transform = `translateX(${selRect.left - parentRect.left}px)`;
+        // style items
+        items.forEach(it => {
+          it.classList.remove('text-white','text-green-700','text-red-700','text-gray-900','font-semibold');
+          if (it.dataset.value === f) {
+            it.classList.add('font-semibold');
+            if (f === 'veg') it.classList.add('text-green-700');
+            else if (f === 'non-veg') it.classList.add('text-red-700');
+            else it.classList.add('text-gray-900');
+          } else {
+            it.classList.add('text-gray-700');
+          }
+        });
+        renderMenu();
+      }
+
+      items.forEach(it => it.addEventListener('click', () => setFilter(it.dataset.value)));
+      // initial (allow layout to settle)
+      setTimeout(() => setFilter(window.__menuFilter || 'all'), 50);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tindo Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="assets/js/redirect-to-localhost.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Mappls Advanced Maps SDK (unified key) -->
+  <script src="https://apis.mappls.com/advancedmaps/api/522d3498e3667eac0fc7f509c00ac75a/map_sdk?v=3.0&layer=vector"></script>
+  <script src="js/wish.js" defer></script>
+  
+  <style>
+    /* 🔥 Universal button animation (CTC style) */
+    button {
+      transition: all 0.15s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    button:active {
+      transform: scale(0.95);
+    }
+    button::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 0;
+      height: 0;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: width 0.4s ease, height 0.4s ease;
+    }
+    button:active::after {
+      width: 150%;
+      height: 150%;
+    }
+    
+    /* 🔔 Toast notifications */
+    #toast {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #22c55e;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.3s, transform 0.3s;
+      z-index: 9999;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body class="bg-green-50 text-gray-900">
+
+<!-- Navbar -->
+<header class="bg-white shadow sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+    <h1 class="text-2xl font-bold text-green-600">🛠️ Tindo Admin</h1>
+    <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-md hover:shadow-lg">Logout</button>
+  </div>
+</header>
+
+<!-- Dashboard -->
+<section class="max-w-7xl mx-auto p-6">
+  <h2 class="text-3xl font-bold text-green-600 mb-6">📊 Admin Dashboard</h2>
+
+  <!-- Stats -->
+  <div class="grid md:grid-cols-3 gap-6 mb-6">
+    <div class="bg-white p-4 rounded-xl shadow text-center">
+      <h3 class="font-bold">Total Users</h3>
+      <p id="totalUsers" class="text-2xl text-green-600">0</p>
+    </div>
+    <div class="bg-white p-4 rounded-xl shadow text-center">
+      <h3 class="font-bold">Total Restaurants</h3>
+      <p id="totalRestaurants" class="text-2xl text-green-600">0</p>
+    </div>
+    <div class="bg-white p-4 rounded-xl shadow text-center">
+      <h3 class="font-bold">Total Orders</h3>
+      <p id="totalOrders" class="text-2xl text-green-600">0</p>
+    </div>
+  </div>
+
+  <!-- 📊 Analytics -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+    <h3 class="text-xl font-bold mb-4">📈 Platform Analytics</h3>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="card bg-green-50 p-4 rounded shadow">
+        <h4 class="font-bold mb-2">Orders Growth</h4>
+        <canvas id="ordersChart"></canvas>
+      </div>
+      <div class="card bg-green-50 p-4 rounded shadow">
+        <h4 class="font-bold mb-2">Revenue Growth</h4>
+        <canvas id="revenueChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🏪 Restaurant Approvals -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+    <h3 class="text-xl font-bold mb-4">🏪 Pending Restaurants</h3>
+    <div id="pendingRestaurants" class="space-y-3"></div>
+  </div>
+
+  <!-- 🍽️ All Menu Items -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+    <h3 class="text-xl font-bold mb-4">🍽️ All Menu Items</h3>
+    <div id="adminMenuList" class="grid md:grid-cols-3 gap-6"></div>
+  </div>
+
+  <!-- 🚴 Delivery Boys List -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-xl font-bold">🚴 Delivery Boys</h3>
+      <label class="text-sm text-gray-600 flex items-center gap-2">
+        View:
+        <select id="agentFilter" class="border rounded px-2 py-1 text-sm">
+          <option value="active" selected>Active only</option>
+          <option value="all">All</option>
+        </select>
+      </label>
+    </div>
+    <div id="deliveryList" class="space-y-3"></div>
+  </div>
+
+  <!-- � Delivery Requests (new) -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-xl font-bold">🚨 Delivery Requests</h3>
+      <div class="flex items-center gap-3">
+        <button id="refreshDeliveryRequests" class="text-sm px-3 py-1 bg-green-50 rounded">Refresh</button>
+        <label class="text-sm text-gray-600 flex items-center gap-2">
+          Auto-refresh:
+          <input id="autoRefreshRequests" type="checkbox" checked class="ml-1" />
+        </label>
+      </div>
+    </div>
+    <div id="deliveryRequests" class="space-y-3">
+      <p class="text-gray-500">Loading delivery requests…</p>
+    </div>
+  </div>
+
+  <!-- �📍 Delivery Boys Location Map -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-xl font-bold">📍 Delivery Boys Location</h3>
+  <button id="btnFullMapAdmin" data-wish class="text-gray-700 hover:text-green-700 border px-3 py-1 rounded flex items-center gap-2" title="Fullscreen Map">⤢ Fullscreen</button>
+    </div>
+    <div class="mb-3 flex items-center gap-3">
+      <label class="text-sm font-medium">Set restaurant location (enter ID):</label>
+      <input id="restaurantIdInput" type="number" min="1" placeholder="Enter restaurant ID" class="border rounded px-3 py-2 text-sm w-48" />
+      <button id="btnClearRestaurantMarker" class="ml-2 text-sm px-3 py-1 bg-gray-100 rounded">Clear marker</button>
+      <div class="text-xs text-gray-500 ml-4">Enter a restaurant ID, then click the map to place a marker. Drag the marker to refine location.</div>
+    </div>
+    <div id="map" style="height:400px;" class="rounded relative"></div>
+  </div>
+
+  <!-- 📦 Active Orders -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+    <h3 class="text-xl font-bold mb-4">📦 Active Orders</h3>
+    <div id="activeOrders" class="space-y-3"></div>
+  </div>
+
+  <!-- 🖼️ Homepage Popup Banner Management -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+    <h3 class="text-xl font-bold mb-4">🖼️ Homepage Popup Banner</h3>
+    <div class="mb-4 p-4 bg-green-50 rounded-xl">
+      <h4 class="font-semibold text-green-800 mb-3">Upload New Banner</h4>
+      <form id="bannerForm" class="flex items-end gap-4">
+        <div class="flex-1">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Banner Image</label>
+          <input type="file" id="bannerFile" accept="image/*" class="w-full px-3 py-2 border rounded-lg" required />
+          <p class="text-xs text-gray-500 mt-1">Recommended: 1200x600px JPG/PNG</p>
+        </div>
+        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium">Upload</button>
+      </form>
+    </div>
+    <div>
+      <h4 class="font-semibold text-gray-800 mb-3">Existing Banners</h4>
+      <div id="bannersList" class="grid md:grid-cols-3 gap-4"></div>
+    </div>
+  </div>
+
+    <!-- ⭐ Top Restaurants Management -->
+    <div class="bg-white p-6 rounded-xl shadow mb-6">
+      <h3 class="text-xl font-bold mb-4">⭐ Top Restaurants (Homepage Section)</h3>
+      <!-- Add Top Restaurant -->
+      <div class="mb-6 p-4 bg-green-50 rounded-xl">
+        <h4 class="font-semibold text-green-800 mb-3">Add Restaurant to Top List</h4>
+        <div class="flex gap-4 items-end">
+          <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Restaurant ID</label>
+            <input type="number" id="topRestaurantId" placeholder="Enter Restaurant ID" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          </div>
+          <div class="w-24">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Position</label>
+            <input type="number" id="topPosition" placeholder="1" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          </div>
+          <button onclick="addTopRestaurant()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-md hover:shadow-lg">Add Top</button>
+        </div>
+        <h4 class="font-semibold text-green-800 mb-3 mt-6">Control Top Restaurants</h4>
+        <div id="topRestaurantsList" class="space-y-3">
+          <!-- Dynamic content will be loaded here -->
+        </div>
+      </div>
+    </div>
+  
+  <!-- 🌟 Featured Restaurants Management -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+    <h3 class="text-xl font-bold mb-4">🌟 Featured Restaurants (Homepage Banner)</h3>
+    
+    <!-- Add Featured Restaurant -->
+    <div class="mb-6 p-4 bg-green-50 rounded-xl">
+      <h4 class="font-semibold text-green-800 mb-3">Add Restaurant to Featured List</h4>
+      <div class="flex gap-4 items-end">
+        <div class="flex-1">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Restaurant ID</label>
+          <input type="number" id="featuredRestaurantId" placeholder="Enter Restaurant ID" 
+                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+        </div>
+        <div class="w-24">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Position</label>
+          <input type="number" id="featuredPosition" placeholder="1" min="1" 
+                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+        </div>
+        <button onclick="addFeaturedRestaurant()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-md hover:shadow-lg">
+          Add Featured
+        </button>
+      </div>
+    </div>
+
+    <!-- Current Featured Restaurants -->
+    <div>
+      <h4 class="font-semibold text-gray-800 mb-3">Current Featured Restaurants</h4>
+      <div id="featuredRestaurantsList" class="space-y-3">
+        <!-- Dynamic content will be loaded here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 📢 Notifications -->
+  <div class="bg-white p-6 rounded-xl shadow">
+    <h3 class="text-xl font-bold mb-4">🔔 Notifications</h3>
+    <ul id="notifications" class="space-y-2"></ul>
+  </div>
+</section>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<!-- 🗺️ Fullscreen Map Modal -->
+<div id="adminFullMapModal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-[9998]">
+  <div class="relative bg-white w-[95vw] h-[90vh] rounded-xl overflow-hidden shadow-2xl">
+    <button id="adminFullMapClose" class="absolute right-3 top-3 z-[9999] bg-white/90 hover:bg-white text-gray-700 rounded-full w-9 h-9 flex items-center justify-center shadow" title="Close">×</button>
+    <div class="absolute left-3 top-3 z-[9999] bg-white/90 rounded-lg px-3 py-2 text-sm text-gray-700 shadow">
+      <div id="adminRouteInfo" class="space-y-1">
+        <div><span class="font-semibold">Order:</span> <span id="adminInfoOrder">—</span></div>
+        <div><span class="font-semibold">Restaurant:</span> <span id="adminInfoRestaurant">—</span></div>
+        <div><span class="font-semibold">User Phone:</span> <span id="adminInfoPhone">—</span></div>
+      </div>
+    </div>
+    <div id="adminFullMap" class="w-full h-full"></div>
+  </div>
+  
+</div>
+
+<script>
+const BASE = "http://localhost:5000";
+const socket = io(BASE);
+
+// When socket connects, ensure map is seeded with restaurants and current delivery agents
+socket.on('connect', () => {
+  console.log('Socket connected — seeding map data');
+  try { loadDeliveryBoys(); } catch(_) {}
+  try { loadRestaurantsForMap(); } catch(_) {}
+});
+
+// ✅ Auth check
+const user = JSON.parse(localStorage.getItem("user"));
+
+// Validate token structure and expiration
+const token = localStorage.getItem("token");
+if (token) {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    const isExpired = payload.exp * 1000 < Date.now();
+
+    if (isExpired) {
+      alert("Session expired. Please login again.");
+      localStorage.removeItem("token");
+      window.location.href = "login.html";
+    }
+  } catch (err) {
+    console.error("Invalid token format:", err);
+    alert("Invalid session. Please login again.");
+    localStorage.removeItem("token");
+    window.location.href = "login.html";
+  }
+} else {
+  alert("Unauthorized! Please login again.");
+  window.location.href = "login.html";
+}
+
+// ✅ Toast function
+function showToast(message, success = true) {
+  let toast = document.getElementById("toast");
+  toast.style.background = success ? "#22c55e" : "#ef4444";
+  toast.textContent = message;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 3000);
+}
+
+function loadAllUsersLight() {
+  console.log("👤 loadAllUsersLight() called — not yet implemented.");
+}
+
+
+// Placeholder to avoid ReferenceError when the full map loader is defined later in another script block
+function loadRestaurantsForMap() {
+  console.log("🗺️ Map view not yet implemented (placeholder).");
+}
+
+// ===== Stats =====
+async function loadStats() {
+  try {
+    const resUsers = await fetch(`${BASE}/api/admin/users/count`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    if (!resUsers.ok) {
+      const fallbackUrl = `${BASE}/api/admin/users?page=1&limit=100000`;
+      console.warn("Users count fetch failed:", resUsers.status, resUsers.statusText);
+      // Try fallback: fetch full users list (large limit) and count length
+      try {
+        const resUsersList = await fetch(fallbackUrl, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (resUsersList.ok) {
+          const usersList = await resUsersList.json();
+          document.getElementById("totalUsers").textContent = (usersList?.length) || 0;
+        } else {
+          const raw = await resUsers.text().catch(() => "");
+          console.warn("Users count raw response:", raw);
+          document.getElementById("totalUsers").textContent = 0;
+        }
+      } catch (inner) {
+        console.error("Users count fallback error:", inner);
+        document.getElementById("totalUsers").textContent = 0;
+      }
+    } else {
+      const usersData = await resUsers.json();
+      document.getElementById("totalUsers").textContent = usersData.count ?? 0;
+    }
+  } catch (e) {
+    console.error("Users stats error:", e);
+    document.getElementById("totalUsers").textContent = 0;
+  }
+
+  try {
+    const resRest = await fetch(`${BASE}/api/admin/restaurants/count`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    if (!resRest.ok) {
+      // Fallback to full list
+      const resRestList = await fetch(`${BASE}/api/admin/restaurants`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      const restaurants = resRestList.ok ? await resRestList.json() : [];
+      document.getElementById("totalRestaurants").textContent = restaurants.length || 0;
+    } else {
+      const restData = await resRest.json();
+      document.getElementById("totalRestaurants").textContent = restData.count ?? 0;
+    }
+  } catch (e) {
+    console.error("Restaurants stats error:", e);
+    document.getElementById("totalRestaurants").textContent = 0;
+  }
+
+  try {
+    const resOrders = await fetch(`${BASE}/api/admin/orders/count`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    if (!resOrders.ok) {
+      const resOrdersList = await fetch(`${BASE}/api/orders/all`);
+      const orders = resOrdersList.ok ? await resOrdersList.json() : [];
+      document.getElementById("totalOrders").textContent = orders.length || 0;
+    } else {
+      const orderData = await resOrders.json();
+      document.getElementById("totalOrders").textContent = orderData.count ?? 0;
+    }
+  } catch (e) {
+    console.error("Orders stats error:", e);
+    document.getElementById("totalOrders").textContent = 0;
+  }
+}
+
+// ===== Pending Restaurants =====
+async function loadPendingRestaurants() {
+  const res = await fetch(`${BASE}/api/admin/restaurants`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  });
+  if (!res.ok) {
+    console.error("Failed to fetch admin restaurants:", res.status, res.statusText);
+    showToast("Failed to load restaurants", false);
+    return;
+  }
+  const data = await res.json();
+  console.log("Admin restaurants API data:", data); // 👈 debug log
+
+  const list = document.getElementById("pendingRestaurants");
+  const pending = data.filter(r => (r.status || "").toLowerCase() === "pending");
+
+  if (!pending.length) {
+    list.innerHTML = `<p class="text-gray-500">No pending approvals</p>`;
+    return;
+  }
+
+  list.innerHTML = pending.map(r => `
+    <div class="card bg-green-50 p-4 rounded-xl shadow flex justify-between items-center">
+      <div>
+        <h3 class="font-bold">${r.name}</h3>
+        <p class="text-sm text-gray-500">${r.email}</p>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="approveRestaurant(${r.id})" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-md hover:shadow-lg">✅ Approve</button>
+        <button onclick="rejectRestaurant(${r.id})" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-md hover:shadow-lg">❌ Reject</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function approveRestaurant(id) {
+  try {
+    const res = await fetch(`${BASE}/api/restaurants/approve/${id}`, {
+      method: "PUT",
+      headers: Object.assign({ "Content-Type": "application/json" }, token ? { Authorization: `Bearer ${token}` } : {})
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Approve failed: ${res.status} ${res.statusText} ${text}`);
+    }
+    const data = await res.json();
+    showToast(data.message || "✅ Restaurant approved");
+    loadPendingRestaurants();
+    loadStats();
+  } catch (err) {
+    console.error("Approve error:", err);
+    showToast("Failed to approve restaurant", false);
+  }
+}
+
+
+async function rejectRestaurant(id){
+  try {
+    const res = await fetch(`${BASE}/api/admin/restaurants/reject/${id}`, { 
+      method:"PUT",
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    const result = await res.json();
+    if (res.ok) {
+      showToast("❌ Restaurant rejected");
+      loadPendingRestaurants();
+      loadStats(); // Refresh stats
+    } else {
+      showToast("❌ " + (result.error || "Failed to reject restaurant"), false);
+    }
+  } catch (err) {
+    showToast("❌ Network error", false);
+    console.error("Reject error:", err);
+  }
+}
+
+// ===== All Menu Items =====
+async function loadAllMenu(){
+  const res = await fetch(`${BASE}/api/admin/menu`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  });
+  if (!res.ok) {
+    console.error("Failed to fetch menu:", res.status, res.statusText);
+    showToast("Failed to load menu", false);
+    return;
+  }
+  const data = await res.json();
+  const list = document.getElementById("adminMenuList");
+  if (!data.length) {
+    list.innerHTML = `<p class="text-gray-500">No menu items found</p>`;
+    return;
+  }
+  list.innerHTML = data.map(m => `
+    <div class="card bg-green-50 p-4 rounded-xl shadow">
+      ${m.image_url ? `<img src="${BASE}/uploads/${m.image_url}" class="h-32 w-full object-cover rounded mb-3">` : ""}
+      <h3 class="font-bold text-lg">${m.item_name}</h3>
+      <p class="text-sm text-gray-500">${m.description || ''}</p>
+      <p class="text-green-600 font-semibold">₹${m.price}</p>
+      <p class="text-xs text-gray-400">Restaurant: ${m.restaurant_name}</p>
+    </div>
+  `).join("");
+}
+
+// ===== Delivery Boys =====
+async function loadDeliveryBoys() {
+  const sel = document.getElementById('agentFilter');
+  const isAll = sel && sel.value === 'all';
+  const url = isAll ? `${BASE}/api/admin/delivery?all=true` : `${BASE}/api/admin/delivery`;
+  const res = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  });
+  if (!res.ok) {
+    console.error("Failed to fetch delivery list:", res.status, res.statusText);
+    showToast("Failed to load delivery list", false);
+    return;
+  }
+  const data = await res.json();
+  const list = document.getElementById("deliveryList");
+  if (!data.length) {
+    list.innerHTML = `<p class="text-gray-500">${isAll ? 'No delivery boys found' : 'No delivery boys active'}</p>`;
+    return;
+  }
+  list.innerHTML = data.map(d => `
+    <div class="card bg-green-50 p-4 rounded-xl shadow flex justify-between items-center">
+      <div>
+        <h3 class="font-bold">${d.name}</h3>
+        <p class="text-sm text-gray-500">${d.email} | ${d.phone}</p>
+      </div>
+      <span class="${(d.status||'').toLowerCase()==='active' ? 'text-green-600' : 'text-gray-500'} font-bold">${d.status || 'Inactive'}</span>
+    </div>
+  `).join("");
+
+  // Seed/refresh map markers with current active agents (Mappls)
+  clearAllAgentMarkers();
+  data.forEach(d => {
+    const lat = Number(d.lat);
+    const lng = Number(d.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      const orderLabel = d.current_order_id || d.order_id || d.orderId ? ` — Order #${d.current_order_id || d.order_id || d.orderId}` : '';
+      const label = `${d.name} (#${d.id})${orderLabel}`;
+      ensureInitMapAndMarker(d.id, lat, lng, label);
+    }
+  });
+}
+
+// ===== Delivery Boys Location Map (Mappls) =====
+let map; // Mappls map instance for small admin map
+let deliveryMarkers = {}; // { agentId: mappls.Marker }
+// initialize Mappls map (center uses [lat, lng] in other files but Mappls constructors here accept [lat,lng])
+function initAdminMap() {
+  if (typeof mappls === 'undefined') {
+    console.error('Mappls SDK not loaded.');
+    return;
+  }
+  if (!map) {
+    map = new mappls.Map('map', { center: [17.385, 78.486], zoom: 12 });
+    // Attach click handler for setting restaurant location (only once)
+    try {
+      if (!map._hasRestaurantClickHandler) {
+        map.on('click', function(e) {
+          try {
+            const restaurantInput = document.getElementById('restaurantIdInput');
+            const restaurant_id = restaurantInput ? restaurantInput.value : null;
+            if (!restaurant_id) {
+              showToast('Enter a restaurant ID first', false);
+              return;
+            }
+            const lat = Number((e.latlng?.lat ?? e.lat ?? (Array.isArray(e.latlng) ? e.latlng[0] : null))).toFixed(7);
+            const lon = Number((e.latlng?.lng ?? e.lng ?? (Array.isArray(e.latlng) ? e.latlng[1] : null))).toFixed(7);
+            placeRestaurantMarker(restaurant_id, Number(lat), Number(lon), true);
+          } catch (inner) { console.error('Map click handler error', inner); }
+        });
+        map._hasRestaurantClickHandler = true;
+      }
+    } catch (err) { console.error('Failed to attach map click handler', err); }
+  }
+}
+let restaurantsById = new Map();
+let usersById = new Map();
+let adminFullMap; let adminFullMapLayers = [];
+let restaurantSavedMarkers = [];
+
+function clearAllAgentMarkers() {
+  Object.values(deliveryMarkers).forEach(m => {
+    try {
+      if (m && typeof m.remove === 'function') m.remove();
+      else if (m && typeof m.setMap === 'function') m.setMap(null);
+    } catch (_) {}
+  });
+  deliveryMarkers = {};
+}
+
+// Support both legacy 'agentLocation' and new 'locationUpdate' events
+// Support both legacy 'agentLocation' and new 'locationUpdate' events and show order number when available
+function ensureInitMapAndMarker(id, lat, lng, label) {
+  try { initAdminMap(); } catch (_) {}
+  if (id == null) return;
+  const pos = [lat, lng]; // ✅ FIXED
+
+  if (deliveryMarkers[id]) {
+    try {
+      // prefer setPosition, fallback to setMap/position APIs
+      if (typeof deliveryMarkers[id].setPosition === 'function') deliveryMarkers[id].setPosition(pos);
+      else if (typeof deliveryMarkers[id].setLatLng === 'function') deliveryMarkers[id].setLatLng({ lat: pos[0], lng: pos[1] });
+      else if (deliveryMarkers[id].setMap) deliveryMarkers[id].setMap(map);
+    } catch (_) {}
+  } else {
+    try {
+      const m = new mappls.Marker({ map, position: pos, popupHtml: label || (`Delivery Agent #${id}`) });
+      // show popup on hover
+      try {
+        if (m && typeof m.on === 'function') {
+          m.on('mouseover', function(){ try { m.setPopupHtml && m.setPopupHtml(label || (`Delivery Agent #${id}`)); m.openPopup && m.openPopup(); } catch(e){} });
+          m.on('mouseout', function(){ try { m.closePopup && m.closePopup(); } catch(e){} });
+        }
+      } catch(e){}
+      deliveryMarkers[id] = m;
+    } catch (e) {
+      console.error('Failed to create Mappls marker for agent', id, e);
+    }
+  }
+}
+
+// ===== Restaurant location setter helpers =====
+let restaurantMarker = null;
+let currentRestaurantMarkerId = null;
+
+function clearRestaurantMarker() {
+  try {
+    if (restaurantMarker && typeof restaurantMarker.remove === 'function') restaurantMarker.remove();
+    else if (restaurantMarker && typeof restaurantMarker.setMap === 'function') restaurantMarker.setMap(null);
+  } catch (_) {}
+  restaurantMarker = null; currentRestaurantMarkerId = null;
+}
+
+async function sendRestaurantLocation(restaurant_id, latitude, longitude) {
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(`${BASE}/api/update-restaurant-location`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ restaurant_id: Number(restaurant_id), latitude: Number(latitude), longitude: Number(longitude) })
+    });
+    const data = await res.json().catch(()=>({}));
+    if (res.ok) {
+      showToast(data.message || 'Saved restaurant location');
+      // Update local cache
+      const r = restaurantsById.get(Number(restaurant_id));
+      if (r) { r.lat = Number(latitude); r.lng = Number(longitude); restaurantsById.set(Number(restaurant_id), r); }
+      // Visual saved indicator: place a temporary green marker / popup near the saved location
+      try {
+        if (restaurantMarker) {
+          // show a saved popup on the existing draggable marker
+          try { restaurantMarker.setPopupHtml && restaurantMarker.setPopupHtml(`<b>Saved ✓</b>`); } catch(_) {}
+        }
+        const savedMk = new mappls.Marker({ map, position: [Number(latitude), Number(longitude)], popupHtml: `<b style="color:green">Saved ✓ ${r?.name || ''}</b>` });
+        setTimeout(() => { try { if (savedMk && typeof savedMk.remove === 'function') savedMk.remove(); } catch(_) {} }, 3000);
+      } catch (e) { console.error('Saved indicator error', e); }
+    } else {
+      console.error('Save location failed', data);
+      showToast(data.message || 'Failed to save location', false);
+    }
+  } catch (err) {
+    console.error('sendRestaurantLocation error', err);
+    showToast('Network error saving location', false);
+  }
+}
+
+function placeRestaurantMarker(restaurant_id, lat, lng, send = false) {
+  try {
+    initAdminMap();
+    clearRestaurantMarker();
+    if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return;
+    const pos = [Number(lat), Number(lng)];
+    const restName = (restaurantsById.get(Number(restaurant_id)) || {}).name || '';
+    const popupHtml = `<b>${restName ? restName + ' — ' : ''}#${restaurant_id}</b>`;
+    restaurantMarker = new mappls.Marker({ map, position: pos, draggable: true, popupHtml });
+    // show popup on hover (and close on mouseout) if marker supports events
+    try {
+      if (restaurantMarker && typeof restaurantMarker.on === 'function') {
+        restaurantMarker.on('mouseover', function(){
+          try { restaurantMarker.setPopupHtml && restaurantMarker.setPopupHtml(popupHtml); restaurantMarker.openPopup && restaurantMarker.openPopup(); } catch(e){}
+        });
+        restaurantMarker.on('mouseout', function(){
+          try { restaurantMarker.closePopup && restaurantMarker.closePopup(); } catch(e){}
+        });
+      }
+    } catch(e) { console.error('marker hover setup failed', e); }
+    currentRestaurantMarkerId = Number(restaurant_id);
+    // on drag end, send new coords
+    try {
+      restaurantMarker.on('dragend', function(ev){
+        try{
+          const p = (typeof restaurantMarker.getPosition === 'function') ? restaurantMarker.getPosition() : (ev?.latlng ?? ev?.target?.getPosition?.());
+          let plat = p?.lat ?? (Array.isArray(p) ? p[0] : null);
+          let plng = p?.lng ?? (Array.isArray(p) ? p[1] : null);
+          if (plat == null && Array.isArray(p)) { plat = p[0]; plng = p[1]; }
+          if (plat != null && plng != null) sendRestaurantLocation(currentRestaurantMarkerId, Number(plat), Number(plng));
+        }catch(e){ console.error('dragend handler error', e); }
+      });
+    } catch (e) {}
+    if (send) sendRestaurantLocation(restaurant_id, Number(lat), Number(lng));
+  } catch (err) { console.error('placeRestaurantMarker', err); }
+}
+
+
+socket.on("agentLocation", (data) => {
+  const { agent_id, lat, lng, order_id, orderId } = data || {};
+  const id = agent_id ?? data?.agentId ?? null;
+  if (id == null) return;
+  const orderNum = order_id ?? orderId ?? data?.orderNum ?? data?.order_id;
+  const label = orderNum ? `Agent #${id} — Order #${orderNum}` : `Agent #${id}`;
+  ensureInitMapAndMarker(id, lat, lng, label);
+});
+
+socket.on("locationUpdate", (data) => {
+  const { agentId, lat, lng, order_id, orderId } = data || {};
+  const id = agentId ?? data?.agent_id ?? null;
+  if (id == null) return;
+  const orderNum = order_id ?? orderId ?? data?.orderNum ?? data?.order_id;
+  const label = orderNum ? `Agent #${id} — Order #${orderNum}` : `Agent #${id}`;
+  ensureInitMapAndMarker(id, lat, lng, label);
+});
+
+// Re-fetch list and markers when filter changes
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.id === 'agentFilter') {
+    loadDeliveryBoys();
+  }
+});
+
+// ===== Active Orders =====
+async function loadActiveOrders() {
+  const res = await fetch(`${BASE}/api/admin/orders`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  });
+  if (!res.ok) {
+    console.error("Failed to fetch active orders:", res.status, res.statusText);
+    showToast("Failed to load active orders", false);
+    return;
+  }
+  const orders = await res.json();
+  const list = document.getElementById("activeOrders");
+  if (!orders.length) {
+    list.innerHTML = `<p class="text-gray-500">No active orders</p>`;
+    return;
+  }
+  list.innerHTML = orders.map(o => `
+    <div class="card bg-green-50 p-3 rounded shadow">
+      <p><strong>Order #${o.id} ${o.order_id ? '('+o.order_id+')' : ''}</strong> - ${o.items ? JSON.parse(o.items).map(i => i.name).join(", ") : ""}</p>
+      <p class="text-sm text-gray-600">Status: ${o.status}</p>
+      <div class="mt-2">
+        <button onclick="assignAgent(${o.id})" class="bg-blue-600 text-white px-3 py-1 rounded text-sm" data-wish>Auto-Assign Agent</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function assignAgent(orderId){
+  try {
+    const res = await fetch(`${BASE}/api/admin/orders/${orderId}/assign`, { 
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(`✅ Assigned agent #${data.agent_id} to order #${orderId}`);
+      loadActiveOrders();
+    } else {
+      showToast('❌ ' + (data.error || 'Failed to assign agent'), false);
+    }
+  } catch (e) {
+    showToast('❌ Network error', false);
+  }
+}
+
+// ===== Notifications =====
+socket.on("newOrder", (order) => {
+  const noti = document.createElement("li");
+  noti.className = "bg-green-100 p-3 rounded shadow";
+  noti.textContent = `📦 New Order #${order.id} placed by ${order.customer_name}`;
+  document.getElementById("notifications").prepend(noti);
+  loadActiveOrders();
+  // Also refresh delivery requests list
+  try { loadDeliveryRequests(); } catch(_) {}
+});
+
+// ===== Delivery Requests (admin) =====
+let deliveryRequestsTimer = null;
+async function loadDeliveryRequests(){
+  try{
+    const res = await fetch(`${BASE}/api/admin/orders` , { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if(!res.ok){ throw new Error('Failed to fetch admin orders'); }
+    const all = await res.json();
+    // Show orders that are pending (or Recently confirmed without agent)
+    const pending = (all || []).filter(o => !o.status || String(o.status).toLowerCase()==='pending' || (o.status==='Confirmed' && !o.agent_id));
+    const container = document.getElementById('deliveryRequests');
+    if(!pending.length){ container.innerHTML = `<p class="text-gray-500">No pending delivery requests</p>`; return; }
+    container.innerHTML = pending.map(o => `
+      <div class="card bg-green-50 p-3 rounded shadow flex justify-between items-start">
+        <div class="flex-1 pr-4">
+          <p class="font-bold">Order #${o.id} ${o.order_id ? '('+o.order_id+')' : ''}</p>
+          <p class="text-sm text-gray-600">Restaurant: ${o.restaurant_id} | User: ${o.user_id || 'N/A'}</p>
+          <p class="text-sm text-gray-600">Status: ${o.status || 'Pending'} ${o.agent_id ? '| Agent #'+o.agent_id : ''}</p>
+        </div>
+        <div class="flex flex-col items-end gap-2">
+          <button onclick="assignAgent(${o.id})" class="bg-blue-600 text-white px-3 py-1 rounded text-sm">Auto-Assign Agent</button>
+          <button onclick="viewOrderDetails(${o.id})" class="text-sm px-3 py-1 bg-white border rounded">Details</button>
+        </div>
+      </div>
+    `).join('');
+  }catch(err){
+    console.error('loadDeliveryRequests error', err);
+    const container = document.getElementById('deliveryRequests');
+    if(container) container.innerHTML = `<p class="text-red-500">Failed to load delivery requests</p>`;
+  }
+}
+
+function viewOrderDetails(orderId){
+  // Simple modal-less details: open admin full map modal with that order if available
+  try{
+    // backend exposes admin orders list; fetch admin orders and find the one with id
+    fetch(`${BASE}/api/admin/orders`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then(r=> r.ok ? r.json() : Promise.reject('fetch failed'))
+      .then(list => {
+        const order = (list || []).find(x => Number(x.id) === Number(orderId));
+        if(order) openAdminFullMap(order);
+        else { alert('Order not found'); }
+      })
+      .catch(e=>{ console.warn('Could not fetch order details', e); alert('Could not fetch order details'); });
+  }catch(e){ console.error(e); alert('Failed to open order details'); }
+}
+
+// Auto-refresh handling
+document.getElementById('refreshDeliveryRequests').addEventListener('click', ()=> loadDeliveryRequests());
+document.getElementById('autoRefreshRequests').addEventListener('change', (e)=>{
+  if(e.target.checked){
+    if(deliveryRequestsTimer) clearInterval(deliveryRequestsTimer);
+    deliveryRequestsTimer = setInterval(()=> loadDeliveryRequests(), 10000);
+  } else {
+    if(deliveryRequestsTimer) clearInterval(deliveryRequestsTimer);
+    deliveryRequestsTimer = null;
+  }
+});
+
+
+// ===== Featured Restaurants Management =====
+// ===== Top Restaurants Management =====
+async function addTopRestaurant() {
+  const restaurantId = document.getElementById("topRestaurantId").value;
+  const position = document.getElementById("topPosition").value || 1;
+  if (!restaurantId) {
+    showToast("Please enter a restaurant ID", false);
+    return;
+  }
+  try {
+    const res = await fetch(`${BASE}/api/admin/top-restaurants`, {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, token ? { Authorization: `Bearer ${token}` } : {}),
+      body: JSON.stringify({ restaurant_id: parseInt(restaurantId), position: parseInt(position) })
+    });
+    const result = await res.json();
+    if (res.ok) {
+      showToast("✅ Restaurant added to top list!");
+      document.getElementById("topRestaurantId").value = "";
+      document.getElementById("topPosition").value = "";
+      loadTopRestaurants();
+    } else {
+      showToast("❌ " + (result.error || "Failed to add restaurant"), false);
+    }
+  } catch (err) {
+    showToast("❌ Network error", false);
+    console.error("Add top restaurant error:", err);
+  }
+}
+async function loadTopRestaurants() {
+  try {
+    console.log("Fetching top restaurants from:", `${BASE}/api/admin/top-restaurants`);
+    const res = await fetch(`${BASE}/api/admin/top-restaurants`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    console.log("Response status:", res.status);
+
+    if (!res.ok) {
+      throw new Error(`Failed to fetch top restaurants: ${res.statusText}`);
+    }
+
+    // Debug: log raw response body before parsing JSON
+    const raw = await res.text();
+    console.log("Top restaurants raw response:", raw);
+    const data = JSON.parse(raw || "[]");
+    console.log("Top restaurants fetched:", data);
+
+    const list = document.getElementById("topRestaurantsList");
+    if (!data.length) {
+      list.innerHTML = `<p class="text-gray-500">No top restaurants found</p>`;
+      return;
+    }
+
+    list.innerHTML = data.map(tr => `
+      <div class="card bg-blue-50 p-4 rounded-xl shadow flex justify-between items-center">
+        <div>
+          <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-2">
+            <span class="text-blue-600 font-bold">#${tr.position}</span>
+          </div>
+          <h3 class="font-bold text-gray-800">${tr.name}</h3>
+          <p class="text-sm text-gray-500">ID: ${tr.restaurant_id} | ${tr.cuisine || 'Multi Cuisine'}</p>
+          <span class="inline-block px-2 py-1 text-xs rounded-full ${tr.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+            ${tr.is_active ? 'Active' : 'Inactive'}
+          </span>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="toggleTopRestaurant(${tr.id}, ${tr.is_active})" class="px-3 py-1 rounded text-sm ${tr.is_active ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-500 hover:bg-blue-600'} text-white transition-all duration-200">
+            ${tr.is_active ? 'Deactivate' : 'Activate'}
+          </button>
+          <button onclick="removeTopRestaurant(${tr.id})" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-all duration-200">Remove</button>
+        </div>
+      </div>
+    `).join("");
+  } catch (err) {
+    console.error("Error loading top restaurants:", err);
+    showToast("Failed to load top restaurants", false);
+  }
+}
+
+async function toggleTopRestaurant(id, currentStatus) {
+  try {
+    const res = await fetch(`${BASE}/api/admin/top-restaurants/${id}/toggle`, {
+      method: "PUT",
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    const result = await res.json();
+    if (res.ok) {
+      showToast(`✅ Restaurant ${result.is_active ? 'activated' : 'deactivated'}`);
+      loadTopRestaurants();
+    } else {
+      showToast("❌ " + (result.error || "Failed to toggle top restaurant"), false);
+    }
+  } catch (err) {
+    showToast("❌ Network error", false);
+    console.error("Toggle top restaurant error:", err);
+  }
+}
+async function loadFeaturedRestaurants() {
+  try {
+    console.log("Fetching featured restaurants from:", `${BASE}/api/admin/featured-restaurants`);
+    const res = await fetch(`${BASE}/api/admin/featured-restaurants`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    console.log("Response status:", res.status);
+
+    if (!res.ok) {
+      throw new Error(`Failed to fetch featured restaurants: ${res.statusText}`);
+    }
+
+    // Debug: log raw response body before parsing JSON
+    const raw = await res.text();
+    console.log("Featured restaurants raw response:", raw);
+    const data = JSON.parse(raw || "[]");
+    console.log("Fetched featured restaurants data:", data);
+
+    const list = document.getElementById("featuredRestaurantsList");
+    if (!data.length) {
+      list.innerHTML = `<p class="text-gray-500">No featured restaurants yet</p>`;
+      return;
+    }
+    
+    list.innerHTML = data.map(fr => `
+      <div class="card bg-green-50 p-4 rounded-xl shadow flex justify-between items-center">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+            <span class="text-green-600 font-bold">#${fr.position}</span>
+          </div>
+          <div>
+            <h3 class="font-bold text-gray-800">${fr.name}</h3>
+            <p class="text-sm text-gray-500">ID: ${fr.restaurant_id} | ${fr.cuisine || 'Multi Cuisine'}</p>
+            <span class="inline-block px-2 py-1 text-xs rounded-full ${fr.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+              ${fr.is_active ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="toggleFeaturedRestaurant(${fr.id}, ${fr.is_active})" 
+                  class="px-3 py-1 rounded text-sm ${fr.is_active ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'} text-white transition-all duration-200">
+            ${fr.is_active ? 'Deactivate' : 'Activate'}
+          </button>
+          <button onclick="removeFeaturedRestaurant(${fr.id})" 
+                  class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-all duration-200">
+            Remove
+          </button>
+        </div>
+      </div>
+    `).join("");
+  } catch (err) {
+    console.error("Error loading featured restaurants:", err);
+    showToast("Failed to load featured restaurants", false);
+  }
+}
+
+async function addFeaturedRestaurant() {
+  const restaurantId = document.getElementById("featuredRestaurantId").value;
+  const position = document.getElementById("featuredPosition").value || 1;
+  
+  if (!restaurantId) {
+    showToast("Please enter a restaurant ID", false);
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${BASE}/api/admin/featured-restaurants`, {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, token ? { Authorization: `Bearer ${token}` } : {}),
+      body: JSON.stringify({ restaurant_id: parseInt(restaurantId), position: parseInt(position) })
+    });
+    
+    const result = await res.json();
+    if (res.ok) {
+      showToast("✅ Restaurant added to featured list!");
+      document.getElementById("featuredRestaurantId").value = "";
+      document.getElementById("featuredPosition").value = "";
+      loadFeaturedRestaurants();
+    } else {
+      showToast("❌ " + (result.error || "Failed to add restaurant"), false);
+    }
+  } catch (err) {
+    showToast("❌ Network error", false);
+    console.error("Add featured restaurant error:", err);
+  }
+}
+
+async function removeFeaturedRestaurant(id) {
+  if (!confirm("Are you sure you want to remove this restaurant from featured list?")) return;
+  
+  try {
+    const res = await fetch(`${BASE}/api/admin/featured-restaurants/${id}`, {
+      method: "DELETE",
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    
+    const result = await res.json();
+    if (res.ok) {
+      showToast("✅ Restaurant removed from featured list");
+      loadFeaturedRestaurants();
+    } else {
+      showToast("❌ " + (result.error || "Failed to remove restaurant"), false);
+    }
+  } catch (err) {
+    showToast("❌ Network error", false);
+    console.error("Remove featured restaurant error:", err);
+  }
+}
+
+async function toggleFeaturedRestaurant(id, currentStatus) {
+  try {
+    const res = await fetch(`${BASE}/api/admin/featured-restaurants/${id}/toggle`, {
+      method: "PUT",
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    
+    const result = await res.json();
+    if (res.ok) {
+      showToast(`✅ Restaurant ${result.is_active ? 'activated' : 'deactivated'}`);
+      loadFeaturedRestaurants();
+    } else {
+      showToast("❌ " + (result.error || "Failed to toggle restaurant"), false);
+    }
+  } catch (err) {
+    showToast("❌ Network error", false);
+    console.error("Toggle featured restaurant error:", err);
+  }
+}
+
+// Fetch and display all orders for the admin
+async function fetchAllOrders() {
+  try {
+    const response = await fetch(`${BASE}/api/orders`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch orders');
+    }
+
+    const orders = await response.json();
+    console.log('All Orders:', orders);
+
+    // Display orders dynamically (example)
+    const ordersContainer = document.getElementById('ordersContainer');
+    if (!ordersContainer) return; // Guard if container isn't present on this page
+    ordersContainer.innerHTML = orders.map(order => `
+      <div class="order">
+        <p><b>Order ID:</b> ${order.id}</p>
+        <p><b>Status:</b> ${order.status}</p>
+        <p><b>Total:</b> ₹${order.total}</p>
+      </div>
+    `).join('');
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', fetchAllOrders);
+
+// ===== Logout =====
+function logout() {
+  localStorage.removeItem("user");
+  localStorage.removeItem("token");
+  window.location.href = "login.html";
+}
+
+// ===== Init =====
+loadStats();
+loadPendingRestaurants();
+loadAllMenu();
+loadDeliveryBoys();
+loadActiveOrders();
+loadDeliveryRequests();
+loadFeaturedRestaurants();
+loadTopRestaurants();
+loadRestaurantsForMap();
+loadAllUsersLight();
+loadBanners();
+
+// Start auto-refresh for delivery requests if control exists and is checked
+try{
+  const auto = document.getElementById('autoRefreshRequests');
+  if(auto && auto.checked){ deliveryRequestsTimer = setInterval(()=> loadDeliveryRequests(), 10000); }
+}catch(e){ }
+
+// ===== Charts Demo =====
+new Chart(document.getElementById("ordersChart"), {
+  type: "bar",
+  data: {
+    labels: ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],
+    datasets: [{
+      label: "Orders",
+      data: [40,55,30,60,70,90,50],
+      backgroundColor: "rgba(34,197,94,0.6)"
+    }]
+  }
+});
+new Chart(document.getElementById("revenueChart"), {
+  type: "line",
+  data: {
+    labels: ["Jan","Feb","Mar","Apr","May","Jun"],
+    datasets: [{
+      label: "Revenue",
+      data: [20000,25000,18000,30000,40000,35000],
+      borderColor: "rgba(34,197,94,1)",
+      backgroundColor: "rgba(34,197,94,0.2)",
+      fill: true
+    }]
+  }
+});
+</script>
+<script>
+// ===== Banners management =====
+async function loadBanners(){
+  try {
+    const res = await fetch(`${BASE}/api/admin/banners`);
+    if(!res.ok){ console.warn('banners fetch failed'); return; }
+    const data = await res.json();
+    const list = document.getElementById('bannersList');
+    if(!list) return;
+    if(!data.length){ list.innerHTML = `<p class="text-gray-500">No banners uploaded</p>`; return; }
+    list.innerHTML = data.map(b => `
+      <div class="relative border rounded-xl overflow-hidden group">
+        <img src="${BASE}/uploads/${b.image_url}" class="w-full h-40 object-cover" alt="Banner #${b.id}">
+        <button onclick="removeBanner(${b.id})" title="Remove" class="absolute top-2 right-2 bg-white/90 text-gray-700 hover:bg-white rounded-full w-8 h-8 flex items-center justify-center shadow">×</button>
+        <div class="absolute bottom-0 left-0 right-0 text-xs text-gray-600 bg-white/70 px-2 py-1 flex justify-between">
+          <span>#${b.id}</span>
+          <span>${b.is_active ? 'Active' : 'Inactive'}</span>
+        </div>
+      </div>
+    `).join('');
+  } catch(e){ console.error('loadBanners error', e); }
+}
+
+</script>
+<script>
+// ===== Fullscreen Map + Route Drawing (Admin) =====
+async function loadRestaurantsForMap(){
+  try {
+    const res = await fetch(`${BASE}/api/restaurants`);
+    const arr = res.ok ? await res.json() : [];
+    restaurantsById = new Map(arr.map(r => [Number(r.id), r]));
+
+    // Use ID input instead of select
+    const input = document.getElementById('restaurantIdInput');
+    if (input) {
+      input.value = '';
+      input.addEventListener('change', (e) => {
+        const id = Number(e.target.value);
+        clearRestaurantMarker();
+        if (!id) return;
+        const r = restaurantsById.get(Number(id));
+            const rlat = r?.latitude ?? r?.lat;
+            const rlng = r?.longitude ?? r?.lng;
+            if (r && Number.isFinite(Number(rlat)) && Number.isFinite(Number(rlng))) {
+              placeRestaurantMarker(id, Number(rlat), Number(rlng), false);
+              try { map.setCenter([Number(rlat), Number(rlng)]); map.setZoom(15); } catch(_){ }
+        } else {
+          showToast('Click on the map to set location for entered restaurant id');
+        }
+      });
+
+      const clearBtn = document.getElementById('btnClearRestaurantMarker');
+      if (clearBtn) clearBtn.addEventListener('click', ()=>{ clearRestaurantMarker(); input.value = ''; });
+    }
+    // ——— Load saved restaurant markers (if coordinates present)
+    try {
+      // Use the convenience endpoint if available, else use the fetched arr
+  const rRes = await fetch(`${BASE}/api/get-restaurants`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  const saved = rRes.ok ? await rRes.json() : arr;
+      // Clear any previous saved markers
+      restaurantSavedMarkers.forEach(m => { try { if (m && typeof m.remove === 'function') m.remove(); } catch(_) {} });
+      restaurantSavedMarkers = [];
+      // Ensure map exists
+      try { initAdminMap(); } catch(_) {}
+      if (typeof map !== 'undefined' && map && Array.isArray(saved)) {
+        saved.forEach(r => {
+          const lat = r.latitude ?? r.lat ?? r.lat;
+          const lng = r.longitude ?? r.lng ?? r.lng;
+          if (lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) {
+            try {
+              const popupHtmlSaved = `<b>${r.name} (#${r.id})</b>`;
+              const mk = new mappls.Marker({ map, position: [Number(lat), Number(lng)], popupHtml: popupHtmlSaved });
+              // clicking a saved marker will populate the ID input and focus
+              try {
+                if (mk && typeof mk.on === 'function') {
+                  mk.on('click', function(){
+                    const input = document.getElementById('restaurantIdInput');
+                    if (input) { input.value = r.id; input.focus(); }
+                    try { clearRestaurantMarker(); placeRestaurantMarker(r.id, Number(lat), Number(lng), false); } catch(_){ }
+                  });
+                  // hover to show popup
+                  mk.on('mouseover', function(){ try { mk.setPopupHtml && mk.setPopupHtml(popupHtmlSaved); mk.openPopup && mk.openPopup(); } catch(e){} });
+                  mk.on('mouseout', function(){ try { mk.closePopup && mk.closePopup(); } catch(e){} });
+                }
+              } catch(e){ /* non-fatal */ }
+              restaurantSavedMarkers.push(mk);
+            } catch (e) { console.error('Failed to add saved restaurant marker', e); }
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('Could not load saved restaurant markers:', err);
+    }
+  } catch(_){ }
+}
+async function loadAllUsersLight(){
+  try {
+    const res = await fetch(`${BASE}/api/admin/users?page=1&limit=100000`);
+    if(!res.ok) return; const arr = await res.json();
+    usersById = new Map(arr.map(u => [Number(u.id), u]));
+  } catch(_){}
+}
+// Open fullscreen showing the first active order with agent assignment (fallback to any)
+document.getElementById('btnFullMapAdmin').addEventListener('click', async ()=>{
+  try{
+    const res = await fetch(`${BASE}/api/admin/orders`);
+    const orders = res.ok ? await res.json() : [];
+    const withAgent = orders.filter(o => o.agent_id);
+    const order = (withAgent[0] || orders[0]) || null;
+    openAdminFullMap(order);
+  }catch(e){ openAdminFullMap(null); }
+});
+
+function openAdminFullMap(order){
+  const modal = document.getElementById('adminFullMapModal');
+  const closeBtn = document.getElementById('adminFullMapClose');
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+  if(!adminFullMap){
+    if (typeof mappls === 'undefined') {
+      console.error('Mappls SDK not loaded for admin full map.');
+    } else {
+      adminFullMap = new mappls.Map('adminFullMap', { center: [17.385, 78.486], zoom: 12 });
+    }
+  }
+  drawAdminRoute(order);
+  closeBtn.onclick = ()=>{ modal.classList.add('hidden'); modal.classList.remove('flex'); };
+  modal.addEventListener('click', (e)=>{ if(e.target === modal) closeBtn.click(); });
+}
+
+function clearAdminRoute(){
+  adminFullMapLayers.forEach(l => {
+    try{
+      if (typeof l.setMap === 'function') l.setMap(null);
+      else if (typeof l.remove === 'function') l.remove();
+    }catch(_){}
+  });
+  adminFullMapLayers = [];
+}
+
+async function getMapplsToken(){
+  try{
+    const res = await fetch(`${BASE}/api/mappls/token`);
+    if(!res.ok) throw new Error('token request failed');
+    const data = await res.json();
+    return data.access_token || data.token || null;
+  } catch(e){ console.error('Failed to get Mappls token:', e.message); return null; }
+}
+
+async function drawAdminRoute(order){
+  clearAdminRoute();
+  const infoOrder = document.getElementById('adminInfoOrder');
+  const infoRest = document.getElementById('adminInfoRestaurant');
+  const infoPhone = document.getElementById('adminInfoPhone');
+  if(!order){
+    infoOrder.textContent = '—'; infoRest.textContent = '—'; infoPhone.textContent = '—';
+    return;
+  }
+  infoOrder.textContent = `#${order.id}`;
+  const rest = restaurantsById.get(Number(order.restaurant_id));
+  infoRest.textContent = rest ? rest.name : String(order.restaurant_id || 'Unknown');
+  const user = usersById.get(Number(order.user_id));
+  infoPhone.textContent = user?.phone || '—';
+
+  // Coordinates
+  const rlat = Number(rest?.lat); const rlng = Number(rest?.lng);
+  const ulat = Number(order.delivery_lat); const ulng = Number(order.delivery_lng);
+  // Agent coords: from current delivery markers if exists, else skip
+  let alat, alng;
+  if(order.agent_id && deliveryMarkers[order.agent_id]){
+    const mk = deliveryMarkers[order.agent_id];
+    try{
+      const p = (typeof mk.getPosition === 'function') ? mk.getPosition() : (typeof mk.getLatLng === 'function' ? mk.getLatLng() : null);
+      if (Array.isArray(p)) { alng = p[0]; alat = p[1]; }
+      else if (p && typeof p.lat !== 'undefined') { alat = p.lat; alng = p.lng; }
+    }catch(_){}
+  }
+  const points = [];
+  const markers = [];
+  function addMarker(lat,lng,label){ if(Number.isFinite(lat)&&Number.isFinite(lng)){
+    try{
+      const m = new mappls.Marker({ map: adminFullMap, position: [lat,lng], popupHtml: label });
+      adminFullMapLayers.push(m); markers.push(m); points.push([lat,lng]);
+    }catch(e){ console.error('Add admin marker failed', e); }
+  } }
+  if(Number.isFinite(alat)&&Number.isFinite(alng)) addMarker(alat,alng,`Agent #${order.agent_id}`);
+  if(Number.isFinite(rlat)&&Number.isFinite(rlng)) addMarker(rlat,rlng,`Restaurant ${rest?.name||''}`);
+  if(Number.isFinite(ulat)&&Number.isFinite(ulng)) addMarker(ulat,ulng,`User ${user?.phone||''}`);
+
+  // Prefer route via Mappls Directions API, fallback to straight lines
+  const aPt = (Number.isFinite(alat)&&Number.isFinite(alng)) ? [alat,alng] : null;
+  const rPt = (Number.isFinite(rlat)&&Number.isFinite(rlng)) ? [rlat,rlng] : null;
+  const uPt = (Number.isFinite(ulat)&&Number.isFinite(ulng)) ? [ulat,ulng] : null;
+
+  let routedDrawn = false;
+  try{
+    const token = await getMapplsToken();
+    const seq = [aPt, rPt, uPt].filter(Boolean);
+    if (seq.length >= 2){
+      const parts = seq.map(p => `${p[1]},${p[0]}`).join(';');
+      const url = `https://apis.mappls.com/advancedmaps/v1/route_adv/driving/${parts}?geometries=geojson${token?`&access_token=${encodeURIComponent(token)}`:''}`;
+      const res = await fetch(url);
+      if (res.ok){
+        const data = await res.json();
+        const coords = data?.routes?.[0]?.geometry?.coordinates?.map(c=>[c[1],c[0]]) || null;
+        if (coords){
+          const pl = new mappls.Polyline({ map: adminFullMap, path: coords, strokeColor:'#16a34a', strokeWeight:6, strokeOpacity:1 });
+          adminFullMapLayers.push(pl);
+          routedDrawn = true;
+          const lats = coords.map(p=>p[0]); const lngs = coords.map(p=>p[1]);
+          const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+          const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+          try{ adminFullMap.fitBounds([[minLat,minLng],[maxLat,maxLng]]); }catch(_){}
+        }
+      }
+    }
+  } catch(_){}
+  if (!routedDrawn){
+    const straight = [aPt, rPt, uPt].filter(Boolean);
+    for (let i=0;i<straight.length-1;i++){
+      try{
+        const seg = new mappls.Polyline({ map: adminFullMap, path: [straight[i], straight[i+1]], strokeColor:'#10b981', strokeOpacity:0.9, strokeWeight:5 });
+        adminFullMapLayers.push(seg);
+      }catch(e){ console.error('Add straight segment failed', e); }
+    }
+    if(points.length){
+      const lats = points.map(p=>p[0]); const lngs = points.map(p=>p[1]);
+      const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+      const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+      try{ adminFullMap.fitBounds([[minLat,minLng],[maxLat,maxLng]]); }catch(_){}
+    }
+  }
+}
+document.getElementById('bannerForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const file = document.getElementById('bannerFile').files[0];
+  if(!file){ showToast('Select an image', false); return; }
+  const fd = new FormData();
+  fd.append('banner', file);
+  try {
+    const res = await fetch(`${BASE}/api/admin/banners`, { method:'POST', body: fd });
+    const j = await res.json();
+    if(res.ok){ showToast('✅ Banner uploaded'); document.getElementById('bannerForm').reset(); loadBanners(); }
+    else { showToast('❌ ' + (j.error || 'Upload failed'), false); }
+  } catch(err){ showToast('❌ Network error', false); }
+});
+
+async function removeBanner(id){
+  if(!confirm('Remove this banner?')) return;
+  try {
+    const res = await fetch(`${BASE}/api/admin/banners/${id}`, { method:'DELETE' });
+    const j = await res.json();
+    if(res.ok){ showToast('✅ Banner removed'); loadBanners(); }
+    else { showToast('❌ ' + (j.error || 'Delete failed'), false); }
+  } catch(e){ showToast('❌ Network error', false); }
+}
+</script>
+</body>
+</html>

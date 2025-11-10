@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Category - Tindo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/animations.css">
+  <style>
+    @keyframes thumb-burst { 0% { transform: translate(0,0) scale(0.6); opacity: 0; } 40% { transform: translate(6px,-8px) scale(1.1); opacity: 1; } 100% { transform: translate(12px,-16px) scale(0.9); opacity: 0; } }
+    .thumb-float { animation: thumb-burst 650ms ease-out forwards; pointer-events: none; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-white text-gray-800 min-h-screen">
+  <!-- Navbar (copied from index.html) -->
+  <header class="bg-white/95 backdrop-blur-sm shadow-lg sticky top-0 z-50 border-b border-green-100">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
+          <span class="text-white text-xl font-bold">T</span>
+        </div>
+        <h1 class="text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent">Tindo</h1>
+      </div>
+      <nav class="space-x-8 flex items-center">
+        <a href="index.html" class="text-gray-600 hover:text-green-600 font-medium transition-colors duration-200">Home</a>
+        <a href="cart.html" class="relative bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2">Cart</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto py-12 px-4">
+  <h2 id="category-title" class="text-4xl font-bold text-green-700 mb-8 text-center">Category</h2>
+  <div id="category-desc" class="text-center text-green-800 mb-8 text-lg"></div>
+  <div id="dishes-list" class="grid md:grid-cols-3 gap-8"></div>
+  <div id="no-dishes" class="text-center text-gray-500 text-lg py-10 hidden">No dishes found for this category.</div>
+  </main>
+
+  <script>
+    const BASE = "http://localhost:5000";
+    const params = new URLSearchParams(window.location.search);
+    const category = params.get('name');
+    document.getElementById('category-title').textContent = category ? `${category} Restaurants` : 'Category';
+    document.getElementById('category-desc').textContent = category ? `Restaurants serving ${category} dishes.` : '';
+
+    async function loadCategoryDishes() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const q = params.get('q');
+
+        const list = document.getElementById('dishes-list');
+        const emptyMsg = document.getElementById('no-dishes');
+        list.innerHTML = '';
+
+        if (q) {
+          // Use server-side search endpoint
+          const resp = await fetch(`${BASE}/api/search?q=${encodeURIComponent(q)}&limit=100`);
+          const data = await resp.json();
+          const results = data.results || [];
+          if (!results.length) {
+            emptyMsg.classList.remove('hidden');
+            return;
+          }
+          list.innerHTML = results.map(item => {
+            const restName = item.restaurant_name || 'Unknown';
+            const restId = item.restaurant_id || item.restaurant_id;
+            const eta = item.restaurant_eta || '30';
+            const restAddress = item.restaurant_address || '';
+            const imageUrl = item.item_image || item.image_url || 'default.jpg';
+            const mid = item.menu_id || item.id || Math.floor(Math.random()*1000000);
+        return `
+          <div class="card hover-lift rounded-2xl overflow-hidden shadow-lg flex flex-col" data-ripple>
+                  <img src="${BASE}/uploads/${imageUrl}" class="w-full h-48 object-cover" alt="${item.item_name}">
+                  <div class="p-6 flex-1 flex flex-col justify-between">
+                    <h3 class="text-xl font-bold text-green-700 mb-2">${item.item_name}</h3>
+                    <p class="text-gray-600 mb-2">${item.description || ''}</p>
+                    <p class="text-green-600 font-semibold mb-2">₹${item.price}</p>
+                    <p class="text-gray-500 mb-2">⏱️ ${eta} mins delivery</p>
+                    <p class="text-gray-600 mb-2">${restAddress}</p>
+                    <p class="text-gray-800 font-medium mb-2">Restaurant: <span class="font-bold">${restName}</span></p>
+                    <button id="add-btn-${mid}" onclick="addToCartUI(${mid}, ${item.restaurant_id || restId}, '${(item.item_name || '').replace(/'/g, "\\'")}')" class="btn btn-primary w-full relative flex items-center justify-center gap-2 mt-3">
+                      <span class="btn-label">Add to Cart</span>
+                    </button>
+                    <div id="qty-row-${mid}" class="hidden mt-3">
+                      <div class="flex items-center justify-between">
+                        <div class="inline-flex items-center gap-3">
+                          <button class="w-9 h-9 rounded-full border text-green-700 border-green-200 hover:bg-green-50" onclick="changeQtyUI(${mid}, -1)">−</button>
+                          <span id="qty-${mid}" class="min-w-6 text-center font-semibold">1</span>
+                          <button class="w-9 h-9 rounded-full border text-green-700 border-green-200 hover:bg-green-50" onclick="changeQtyUI(${mid}, 1)">+</button>
+                        </div>
+                        <div class="text-sm text-gray-500">Updated in cart</div>
+                      </div>
+                    </div>
+                    <a href="restaurant.html?id=${restId}" class="btn-primary mt-4 inline-block px-6 py-2 rounded">View Restaurant</a>
+                  </div>
+                </div>
+              `;
+          }).join('');
+          // Populate menu index for cart behavior
+          results.forEach(item => {
+            const mid = item.menu_id || item.id;
+            window.__menuIndex = window.__menuIndex || {};
+            window.__menuIndex[mid] = {
+              name: item.item_name,
+              price: Number(item.price) || 0,
+              image_url: item.item_image || item.image_url || '',
+              restaurant_id: item.restaurant_id
+            };
+          });
+          return;
+        }
+
+        // Fallback to previous behavior if `name` param is used
+        const category = params.get('name') || params.get('category');
+        if (!category) {
+          emptyMsg.classList.remove('hidden');
+          return;
+        }
+
+        // Fetch all restaurants and menu items
+        const [restaurantsRes, menuRes] = await Promise.all([
+          fetch(`${BASE}/api/restaurants`),
+          fetch(`${BASE}/api/admin/menu`)
+        ]);
+        const restaurants = await restaurantsRes.json();
+        const menuItems = await menuRes.json();
+
+        const matchingMenu = menuItems.filter(item => {
+          const nameMatch = item.item_name && item.item_name.toLowerCase().includes(category.toLowerCase());
+          const catMatch = item.category && item.category.toLowerCase().includes(category.toLowerCase());
+          const cuisineMatch = item.cuisine && item.cuisine.toLowerCase().includes(category.toLowerCase());
+          return nameMatch || catMatch || cuisineMatch;
+        });
+
+        if (!matchingMenu.length) {
+          emptyMsg.classList.remove('hidden');
+          return;
+        }
+
+        list.innerHTML = matchingMenu.map(dish => {
+          const restaurant = restaurants.find(r => r.id === dish.restaurant_id);
+          const restName = restaurant?.name || dish.restaurant_name || 'Unknown';
+          const restId = restaurant?.id || dish.restaurant_id;
+          const eta = restaurant?.eta || '30';
+          const restAddress = restaurant?.address || '';
+      return `
+        <div class="card hover-lift rounded-2xl overflow-hidden shadow-lg flex flex-col" data-ripple>
+              <img src="${BASE}/uploads/${dish.image_url || 'default.jpg'}" class="w-full h-48 object-cover" alt="${dish.item_name}">
+              <div class="p-6 flex-1 flex flex-col justify-between">
+                <h3 class="text-xl font-bold text-green-700 mb-2">${dish.item_name}</h3>
+                <p class="text-gray-600 mb-2">${dish.description || ''}</p>
+                <p class="text-green-600 font-semibold mb-2">₹${dish.price}</p>
+                <p class="text-gray-500 mb-2">⏱️ ${eta} mins delivery</p>
+                <p class="text-gray-600 mb-2">${restAddress}</p>
+                <p class="text-gray-800 font-medium mb-2">Restaurant: <span class="font-bold">${restName}</span></p>
+                <a href="restaurant.html?id=${restId}" class="btn-primary mt-4 inline-block px-6 py-2 rounded">View Restaurant</a>
+              </div>
+            </div>
+          `;
+        }).join('');
+        // Populate menu index for cart behavior (fallback client-side list)
+        matchingMenu.forEach(dish => {
+          window.__menuIndex = window.__menuIndex || {};
+          window.__menuIndex[dish.id] = {
+            name: dish.item_name,
+            price: Number(dish.price) || 0,
+            image_url: dish.image_url || '',
+            restaurant_id: dish.restaurant_id
+          };
+        });
+
+      } catch (err) {
+        console.error('Error loading category dishes:', err);
+        document.getElementById('no-dishes').textContent = 'Failed to load dishes.';
+        document.getElementById('no-dishes').classList.remove('hidden');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadCategoryDishes);
+    // ---- Cart helpers (copied from restaurant.html for consistent behavior) ----
+    window.__menuIndex = window.__menuIndex || {};
+    function addToCartUI(menuId, restaurantId, itemName) {
+      // find item metadata from rendered DOM or fallback
+      const name = itemName || (window.__menuIndex && window.__menuIndex[menuId] && window.__menuIndex[menuId].name) || 'Item';
+      const price = (window.__menuIndex && window.__menuIndex[menuId] && window.__menuIndex[menuId].price) || 0;
+      const image = (window.__menuIndex && window.__menuIndex[menuId] && window.__menuIndex[menuId].image_url) || '';
+
+      let cart = JSON.parse(localStorage.getItem('tindo_cart') || '[]');
+      let existing = cart.find(i => i.name === name && i.restaurant_id === restaurantId);
+      if (existing) {
+        existing.qty = (existing.qty || 0) + 1;
+      } else {
+        existing = { name, price, image_url: image, restaurant_id: restaurantId, qty: 1 };
+        cart.push(existing);
+      }
+      localStorage.setItem('tindo_cart', JSON.stringify(cart));
+
+      const btn = document.getElementById(`add-btn-${menuId}`);
+      const qtyRow = document.getElementById(`qty-row-${menuId}`);
+      const qtyEl = document.getElementById(`qty-${menuId}`);
+      if (btn) {
+        const lbl = btn.querySelector('.btn-label');
+        if (lbl) lbl.textContent = 'Added to Cart';
+        const span = document.createElement('span');
+        span.textContent = '👍';
+        span.className = 'thumb-float absolute right-3 -top-2 text-xl';
+        btn.appendChild(span);
+        setTimeout(() => { if (span && span.parentNode) span.parentNode.removeChild(span); }, 700);
+      }
+      if (qtyRow) qtyRow.classList.remove('hidden');
+      if (qtyEl) qtyEl.textContent = String(existing.qty || 1);
+    }
+
+    function changeQtyUI(menuId, delta) {
+      const meta = (window.__menuIndex && window.__menuIndex[menuId]) || {};
+      const name = meta.name || '';
+      const restaurantId = meta.restaurant_id || null;
+      let cart = JSON.parse(localStorage.getItem('tindo_cart') || '[]');
+      const idx = cart.findIndex(i => i.name === name && i.restaurant_id === restaurantId);
+      if (idx === -1) {
+        if (delta > 0) cart.push({ name, price: meta.price || 0, image_url: meta.image_url || '', restaurant_id: restaurantId, qty: 1 });
+      } else {
+        cart[idx].qty = Math.max(0, (cart[idx].qty || 0) + delta);
+        if (cart[idx].qty === 0) cart.splice(idx, 1);
+      }
+      localStorage.setItem('tindo_cart', JSON.stringify(cart));
+      const qtyRow = document.getElementById(`qty-row-${menuId}`);
+      const qtyEl = document.getElementById(`qty-${menuId}`);
+      const qtyVal = (cart.find(i => i.name === name && i.restaurant_id === restaurantId) || {}).qty || 0;
+      if (qtyEl) qtyEl.textContent = String(qtyVal);
+      if (qtyRow && qtyVal <= 0) qtyRow.classList.add('hidden');
+    }
+
+    function syncMenuButtons() {
+      const cart = JSON.parse(localStorage.getItem('tindo_cart') || '[]');
+      document.querySelectorAll('[id^="add-btn-"]').forEach(btn => {
+        const id = Number(btn.id.replace('add-btn-',''));
+        const meta = window.__menuIndex && window.__menuIndex[id];
+        if (!meta) return;
+        const exists = cart.find(i => i.name === meta.name && i.restaurant_id === meta.restaurant_id);
+        const lbl = btn.querySelector('.btn-label');
+        const qtyRow = document.getElementById(`qty-row-${id}`);
+        const qtyEl = document.getElementById(`qty-${id}`);
+        if (exists) {
+          if (lbl) lbl.textContent = 'Added to Cart';
+          if (qtyRow) qtyRow.classList.remove('hidden');
+          if (qtyEl) qtyEl.textContent = String(exists.qty);
+        } else {
+          if (lbl) lbl.textContent = 'Add to Cart';
+          if (qtyRow) qtyRow.classList.add('hidden');
+        }
+      });
+    }
+
+    // Keep buttons in sync on load
+    document.addEventListener('DOMContentLoaded', () => setTimeout(syncMenuButtons, 200));
+  </script>
+</body>
+</html>

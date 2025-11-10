@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tindo Delivery Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Mappls Advanced Maps SDK -->
+  <script src="https://apis.mappls.com/advancedmaps/api/MAPPLS_API_KEY/map_sdk?v=3.0&layer=vector"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="js/wish.js" defer></script>
+  <style>
+    /* Hide OpenStreetMap / MapLibre attribution & contributors (ensure license compliance separately) */
+    .mapboxgl-ctrl-attrib, .maplibregl-ctrl-attrib, .mappls-attrib, .mappls-attrib-container { display: none !important; }
+  </style>
+  <!-- If developer opened this file directly (file://), redirect to the local dev server so assets and APIs load correctly -->
+  <script>
+    try {
+      if (location.protocol === 'file:') {
+        // preserve pathname if possible, otherwise redirect to default served path
+        const served = 'http://localhost:5000/delivery-dashboard.html';
+        console.info('Opened via file:// — redirecting to', served);
+        window.location.replace(served);
+      }
+    } catch (e) { /* ignore in restricted contexts */ }
+  </script>
+</head>
+<body class="bg-green-50 text-gray-900">
+
+<!-- Navbar -->
+<header class="bg-white shadow sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+    <h1 class="text-2xl font-bold text-green-600">🚴 Tindo Delivery</h1>
+    <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded">Logout</button>
+  </div>
+</header>
+<div id="deliveryRouteInfo" 
+     class="absolute top-3 left-3 bg-white/90 rounded-lg p-3 shadow text-sm z-50"></div>
+<!-- Live Debug Overlay -->
+<div id="debugPanel" class="fixed top-3 right-3 z-50 bg-black/70 text-white text-xs rounded-lg p-3 shadow">
+  <div class="font-semibold mb-1">🐞 Live Debug</div>
+  <div>Agent: <span id="dbgAgentId">-</span></div>
+  <div>Socket: <span id="dbgSocket">-</span></div>
+  <div>Source: <span id="dbgSource">-</span></div>
+  <div>Lat: <span id="dbgLat">-</span></div>
+  <div>Lng: <span id="dbgLng">-</span></div>
+  <div>Age: <span id="dbgAge">-</span>s</div>
+</div>
+
+<!-- Dashboard -->
+<section class="max-w-7xl mx-auto p-6">
+  <!-- Break/Offline Mode -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6 flex items-center justify-between">
+    <h3 class="text-2xl font-bold text-gray-800 flex items-center gap-2"><span>⏳</span> Availability</h3>
+    <div class="flex items-center gap-3">
+      <span id="availText" class="text-sm font-semibold px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Online</span>
+      <label class="relative inline-flex items-center cursor-pointer select-none">
+        <input type="checkbox" id="availabilityToggle" class="sr-only peer" checked>
+        <div class="w-16 h-9 rounded-full bg-gray-200 transition-all duration-300 peer-focus:ring-4 peer-focus:ring-emerald-200 peer-checked:bg-emerald-500 shadow-inner"></div>
+        <div class="absolute top-1 left-1 w-7 h-7 rounded-full bg-white shadow-md transition-all duration-300 peer-checked:translate-x-7 peer-checked:shadow-lg"></div>
+      </label>
+      <span class="text-xs text-gray-500">Toggle to go Offline for a break</span>
+    </div>
+  </div>
+  <!-- Earnings Tracker -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+  <h3 class="text-2xl font-bold mb-4 text-green-700 flex items-center gap-2"><span>�</span> Earnings Tracker</h3>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="card bg-green-50 p-4 rounded shadow">
+        <h4 class="font-bold mb-2">Weekly/Monthly Income</h4>
+        <canvas id="earningsChart"></canvas>
+      </div>
+      <div class="card bg-green-50 p-4 rounded shadow">
+        <h4 class="font-bold mb-2">Per-Order Earnings</h4>
+        <ul id="orderEarnings" class="space-y-2"></ul>
+      </div>
+    </div>
+  </div>
+  <!-- Delivery History -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+  <h3 class="text-2xl font-bold mb-4 text-purple-700 flex items-center gap-2"><span>🕓</span> Delivery History</h3>
+    <div id="historyList" class="space-y-3">
+      <p class="text-gray-500">No history yet...</p>
+    </div>
+  </div>
+  <h2 class="text-3xl font-bold text-green-600 mb-6">📦 My Dashboard</h2>
+
+  <!-- Earnings Summary -->
+  <div class="grid md:grid-cols-3 gap-6 mb-6">
+    <div class="bg-white p-4 rounded-xl shadow text-center">
+      <h3 class="font-bold">Today’s Earnings</h3>
+      <p id="earnToday" class="text-2xl text-green-600">₹0</p>
+    </div>
+    <div class="bg-white p-4 rounded-xl shadow text-center">
+      <h3 class="font-bold">Weekly Earnings</h3>
+      <p id="earnWeek" class="text-2xl text-green-600">₹0</p>
+    </div>
+    <div class="bg-white p-4 rounded-xl shadow text-center">
+      <h3 class="font-bold">Total Orders</h3>
+      <p id="totalOrders" class="text-2xl text-green-600">0</p>
+    </div>
+  </div>
+
+  <!-- Assigned Orders -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+  <h3 class="text-2xl font-bold mb-4 text-blue-700 flex items-center gap-2"><span>�</span> Assigned Orders</h3>
+    <div id="ordersList" class="space-y-3">
+      <p class="text-gray-500">No orders yet...</p>
+    </div>
+  </div>
+
+  <!-- Live Map in scrollable box -->
+  <div class="bg-white p-6 rounded-xl shadow mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-xl font-bold">🗺️ My Live Location</h3>
+      <div class="flex items-center gap-2">
+        <button id="detectNowBtn" class="text-gray-700 hover:text-green-700 border px-3 py-1 rounded flex items-center gap-2" title="Detect My Location" data-wish>📍 Detect</button>
+        <button id="btnFullMapDelivery" class="text-gray-700 hover:text-green-700 border px-3 py-1 rounded flex items-center gap-2" title="Fullscreen Map" data-wish>⤢ Fullscreen</button>
+      </div>
+    </div>
+    <div id="map" class="h-96 w-full rounded overflow-hidden" style="max-height: 400px; box-shadow: 0 4px 16px rgba(16,185,129,0.10);"></div>
+  </div>
+
+  <!-- Notifications -->
+  <div class="bg-white p-6 rounded-xl shadow">
+    <h3 class="text-xl font-bold mb-4">🔔 Notifications</h3>
+    <ul id="notifications" class="space-y-2"></ul>
+  </div>
+</section>
+
+<script>
+  const BASE = "http://localhost:5000";
+  const socket = io(BASE);
+  // Resolve agent id from logged-in user
+  const loggedUser = (()=>{ try { return JSON.parse(localStorage.getItem('user')); } catch(_) { return null; } })();
+  let agentId = 1;
+  // Debug overlay helpers
+  const __dbg = { lastTs: 0 };
+  function updateDebug({ lat = null, lng = null, source = '-' } = {}) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('dbgAgentId', agentId ?? '-');
+    set('dbgLat', (typeof lat === 'number' && isFinite(lat)) ? lat.toFixed(6) : (lat ?? '-'));
+    set('dbgLng', (typeof lng === 'number' && isFinite(lng)) ? lng.toFixed(6) : (lng ?? '-'));
+    set('dbgSource', source);
+    set('dbgSocket', (socket && socket.connected) ? 'connected' : 'disconnected');
+    __dbg.lastTs = Date.now();
+  }
+  setInterval(() => {
+    const el = document.getElementById('dbgAge');
+    if (!el) return;
+    if (!__dbg.lastTs) { el.textContent = '-'; return; }
+    el.textContent = Math.max(0, Math.round((Date.now() - __dbg.lastTs) / 1000));
+  }, 1000);
+  // Avoid top-level await: resolve agentId asynchronously before init
+  (async () => {
+    if (loggedUser) {
+      try {
+        const resp = await fetch(`${BASE}/api/delivery/by-user/${loggedUser.id}`);
+        if (resp.ok) {
+          const agent = await resp.json();
+          agentId = agent.id;
+          updateDebug({ source: 'init' });
+        }
+      } catch (_) {}
+    }
+    // Register socket listeners now that agentId is known
+    try {
+      socket.on(`orderForAgent_${agentId}`, (order) => {
+        showOrderNotification(`📦 New Order #${order.id} assigned!`, 'green');
+        loadOrders();
+      });
+      socket.on(`orderCanceled_${agentId}`, (order) => {
+        showOrderNotification(`❌ Order #${order.id} canceled!`, 'red');
+        loadOrders();
+      });
+      socket.on(`orderDelayed_${agentId}`, (order) => {
+        showOrderNotification(`⏳ Order #${order.id} delayed!`, 'yellow');
+        loadOrders();
+      });
+    } catch (_) {}
+    // Init after agentId is resolved
+    loadOrders();
+    shareLocation();
+  })();
+
+  // Fetch assigned orders
+  async function loadOrders() {
+  let res = await fetch(`${BASE}/api/delivery/${agentId}/orders`);
+    let orders = await res.json();
+    renderOrders(orders);
+  }
+
+  // Render orders
+  function renderOrders(orders) {
+    const list = document.getElementById("ordersList");
+    list.innerHTML = "";
+    orders.forEach(order => {
+      const div = document.createElement("div");
+      div.className = "card bg-green-50 p-3 rounded shadow";
+      const customerName = order.customer_name || 'Unknown';
+      const pickupLocation = order.pickup_location || order.restaurant_address || 'N/A';
+      div.innerHTML = `
+        <p class="font-bold text-lg text-blue-700 mb-1">Order #${order.id}</p>
+        <p class="text-sm text-gray-700">Customer: ${customerName}</p>
+        <p class="text-sm text-gray-700">Pickup: ${pickupLocation}</p>
+        <p class="text-sm text-gray-600">Items: ${JSON.parse(order.items).map(i => i.name).join(", ")}</p>
+        <p class="text-sm text-gray-600">Status: ${order.status}</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button onclick="updateOrder(${order.id}, 'Picked Up')" class="bg-yellow-500 text-white px-4 py-2 rounded-lg shadow hover:bg-yellow-600 transition-all flex items-center gap-1" data-wish><span>📤</span> Picked</button>
+          <button onclick="updateOrder(${order.id}, 'Delivered')" class="bg-green-600 text-white px-4 py-2 rounded-lg shadow hover:bg-green-700 transition-all flex items-center gap-1" data-wish><span>✅</span> Delivered</button>
+          <button onclick="openRouteOptimization('${pickupLocation}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700 transition-all flex items-center gap-1"><span>🗺️</span> Route</button>
+          <button onclick="chatCustomer('${customerName}')" class="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700 transition-all flex items-center gap-1"><span>💬</span> Chat</button>
+          <button onclick="callCustomer('${order.customer_phone || ''}')" class="bg-pink-600 text-white px-4 py-2 rounded-lg shadow hover:bg-pink-700 transition-all flex items-center gap-1" data-wish><span>📞</span> Call</button>
+          <button onclick="showProofModal(${order.id})" class="bg-gray-700 text-white px-4 py-2 rounded-lg shadow hover:bg-gray-800 transition-all flex items-center gap-1"><span>🖼️</span> Proof</button>
+        </div>
+      `;
+      list.appendChild(div);
+    });
+  }
+
+  // Update order status
+  async function updateOrder(orderId, status) {
+  await fetch(`${BASE}/api/delivery/update-order`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order_id: orderId, status })
+    });
+    loadOrders();
+  }
+
+  // Live location sharing (aligned with user-address.html impl + high-accuracy)
+  let geoWatchId = null;
+  let lastSent = { lat: null, lng: null };
+  let pollTimer = null;
+  let lastFixTs = 0;
+  function shareLocation() {
+    if (!('geolocation' in navigator)) {
+      console.warn('Geolocation not supported');
+      return;
+    }
+    // Clear any previous watcher to avoid duplicates
+      if (geoWatchId !== null) {
+      try { navigator.geolocation.clearWatch(geoWatchId); } catch (_) {}
+      geoWatchId = null;
+    }
+    geoWatchId = navigator.geolocation.watchPosition(async (pos) => {
+      let lat = pos.coords.latitude;
+      let lng = pos.coords.longitude;
+      lastFixTs = Date.now();
+
+      // Basic sanity: if values look swapped, correct them
+      if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
+        const tmp = lat; lat = lng; lng = tmp;
+      }
+
+      // Only send if changed meaningfully (>= ~1 meter)
+      const changedEnough = (() => {
+        if (lastSent.lat == null || lastSent.lng == null) return true;
+        const toRad = (d) => d * Math.PI / 180;
+        const dLat = toRad(lat - lastSent.lat);
+        const dLng = toRad(lng - lastSent.lng);
+        const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lastSent.lat)) * Math.cos(toRad(lat)) * Math.sin(dLng/2)**2;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const dist = 6371000 * c; // meters
+        return dist >= 1;
+      })();
+
+      if (changedEnough) {
+        lastSent = { lat, lng };
+        if (window.__isAvailable) {
+          try {
+            await fetch(`${BASE}/api/delivery/location`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ agent_id: agentId, lat, lng })
+            });
+          } catch(_) {}
+          // Also broadcast for realtime dashboards
+          try { socket.emit('agentLocation', { agentId, lat, lng }); } catch(_) {}
+        }
+      }
+      updateMap(lat, lng);
+      updateDebug({ lat, lng, source: 'watch' });
+    }, (err) => {
+      console.error('watchPosition error:', err);
+      // Fallback: try one-time position
+      try {
+        navigator.geolocation.getCurrentPosition((p)=>{
+          updateMap(p.coords.latitude, p.coords.longitude);
+          updateDebug({ lat: p.coords.latitude, lng: p.coords.longitude, source: 'watch-fallback' });
+        });
+      } catch(_) {}
+    }, {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 0
+    });
+
+    // Start a lightweight poll fallback (every 5s) to guarantee updates on devices that throttle watchPosition
+    if (pollTimer) { try { clearInterval(pollTimer); } catch(_) {} }
+    pollTimer = setInterval(() => {
+      // If watch gave us a fix in last 10s, skip polling
+      if (Date.now() - lastFixTs < 5000) return;
+      try {
+        navigator.geolocation.getCurrentPosition(async (p) => {
+          const lat = p.coords.latitude; const lng = p.coords.longitude;
+          updateMap(lat, lng);
+          updateDebug({ lat, lng, source: 'poll' });
+          // Send to backend (throttled via changedEnough rules implicitly on next watch event)
+          if (window.__isAvailable) {
+            try {
+              await fetch(`${BASE}/api/delivery/location`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ agent_id: agentId, lat, lng })
+              });
+            } catch(_) {}
+          }
+        });
+      } catch(_) {}
+    }, 5000);
+  }
+
+  // Expose a one-time detect function exactly like user-address.html style
+  async function detectLiveLocation() {
+    if (!navigator.geolocation) {
+      alert('❌ Geolocation is not supported by your browser.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition((position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      updateMap(lat, lng);
+      updateDebug({ lat, lng, source: 'detect' });
+    }, (error) => {
+      switch (error.code) {
+        case error.PERMISSION_DENIED:
+          alert('⚠️ Please allow location access in your browser settings.');
+          break;
+        case error.POSITION_UNAVAILABLE:
+          alert('📡 Unable to detect your position. Try again.');
+          break;
+        case error.TIMEOUT:
+          alert('⏱️ Location detection timed out. Please retry.');
+          break;
+        default:
+          alert('❌ An unknown error occurred while fetching location.');
+      }
+      console.error('Location error:', error);
+    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 });
+  }
+
+  // Mappls main map setup
+  let mainMap, mainMarker;
+  let lastAgentLat = 17.3850, lastAgentLng = 78.4867;
+  let mapplsToken = null; // OAuth for route API
+
+  function initMainMap(){
+    try {
+      mainMap = new mappls.Map('map', { center: [lastAgentLat, lastAgentLng], zoom: 16, clickableIcons: false });
+      mainMarker = new mappls.Marker({ map: mainMap, position: [lastAgentLat, lastAgentLng], popupHtml: 'You (Agent) 🚴' });
+    } catch (e) {
+      console.error('Map init failed:', e);
+    }
+  }
+
+  // One-time detection like user-address.html for initial center/permission prompt
+  async function detectLiveLocationOnce() {
+    if (!navigator.geolocation) {
+      alert('❌ Geolocation not supported');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      console.log('✅ one-time location:', lat, lng);
+      updateMap(lat, lng);
+      updateDebug({ lat, lng, source: 'detect-once' });
+    }, (err) => {
+      console.warn('getCurrentPosition error:', err);
+    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 });
+  }
+
+  function updateMap(lat, lng) {
+    lastAgentLat = lat; lastAgentLng = lng;
+    // Lazy init map and marker if Mappls is ready
+    if (!mainMap && typeof mappls !== 'undefined') {
+      try {
+        mainMap = new mappls.Map('map', { center: [lat, lng], zoom: 16, clickableIcons: false });
+      } catch(_) {}
+    }
+    if (!mainMarker && mainMap) {
+      try { mainMarker = new mappls.Marker({ map: mainMap, position: [lat, lng], popupHtml: 'You (Agent) 🚴' }); } catch(_) {}
+    }
+    // Update marker position first
+    try { if (mainMarker && typeof mainMarker.setPosition === 'function') mainMarker.setPosition([lat, lng]); } catch(_){ }
+    // Prefer setCenter for Mappls (consistent with user-address)
+    try {
+      if (mainMap && typeof mainMap.setCenter === 'function') mainMap.setCenter([lat, lng]);
+      else if (mainMap && typeof mainMap.panTo === 'function') mainMap.panTo([lat, lng]);
+    } catch(_){ }
+  }
+
+  // Listen for backend-pushed live location updates (Admin/User view compatibility)
+  try {
+    // On the delivery agent's own dashboard we rely exclusively on device GPS.
+    // Do NOT apply any socket-driven map updates here (prevents stale server coords).
+    socket.on("locationUpdate", () => {});
+    socket.on("agentLocation", () => {});
+    socket.on('connect', () => updateDebug({ source: 'socket' }));
+    socket.on('disconnect', () => updateDebug({ source: 'socket' }));
+  } catch (_) {}
+
+  // Notifications are registered after agentId resolution above
+
+  function showOrderNotification(message, color) {
+    const noti = document.createElement("li");
+    let bg = 'bg-green-100';
+    if (color === 'red') bg = 'bg-red-100';
+    if (color === 'yellow') bg = 'bg-yellow-100';
+    noti.className = `${bg} p-3 rounded shadow`;
+    noti.textContent = message;
+    document.getElementById("notifications").prepend(noti);
+  }
+
+  function logout() {
+    alert("Logging out...");
+    window.location.href = "login.html";
+  }
+
+  // Fetch and display orders for the delivery agent
+  async function fetchAgentOrders() {
+    try {
+      const response = await fetch(`${BASE}/api/orders/agent/${agentId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch agent orders');
+      }
+
+      const orders = await response.json();
+      console.log('Agent Orders:', orders);
+
+      // Display orders dynamically (example)
+      const ordersList = document.getElementById('ordersList');
+      ordersList.innerHTML = orders.map(order => `
+        <div class="order">
+          <p><b>Order ID:</b> ${order.id}</p>
+          <p><b>Status:</b> ${order.status}</p>
+          <p><b>Total:</b> ₹${order.total}</p>
+        </div>
+      `).join('');
+    } catch (error) {
+      console.error('Error fetching agent orders:', error);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    fetchAgentOrders();
+    // Ensure Mappls loaded (align with user-address.html approach)
+    const wait = setInterval(() => {
+      if (typeof mappls !== 'undefined') {
+        clearInterval(wait);
+        try { initMainMap(); } catch(_){}
+        // Kick an immediate one-time detect to match user-address UX
+        try { detectLiveLocationOnce(); } catch(_){}
+        // Also ensure shareLocation is active after map initializes (safe to call multiple times)
+        try { shareLocation(); } catch(_){}
+      }
+    }, 300);
+
+    // Wire Detect button
+    const detectBtn = document.getElementById('detectNowBtn');
+    if (detectBtn) {
+      detectBtn.addEventListener('click', (e)=>{
+        e.preventDefault();
+        const prev = detectBtn.textContent; detectBtn.disabled = true; detectBtn.textContent = 'Detecting…';
+        Promise.resolve(detectLiveLocationOnce()).finally(()=>{ detectBtn.disabled = false; detectBtn.textContent = prev; });
+      });
+    }
+
+    // Visibility handling: re-arm watcher when tab becomes active
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        shareLocation();
+      }
+    });
+    // Cleanup on unload
+    window.addEventListener('beforeunload', () => {
+      try { if (geoWatchId !== null) navigator.geolocation.clearWatch(geoWatchId); } catch(_) {}
+      try { if (pollTimer) clearInterval(pollTimer); } catch(_) {}
+    });
+  });
+
+  // Availability switch behavior
+  window.__isAvailable = true;
+  const toggle = document.getElementById('availabilityToggle');
+  const availText = document.getElementById('availText');
+  toggle.addEventListener('change', async () => {
+    const available = toggle.checked;
+    window.__isAvailable = available;
+    // Update pill text and styles
+    if (available) {
+      availText.textContent = 'Online';
+      availText.className = 'text-sm font-semibold px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200';
+    } else {
+      availText.textContent = 'Offline';
+      availText.className = 'text-sm font-semibold px-2 py-1 rounded bg-gray-100 text-gray-700 border border-gray-200';
+    }
+    try {
+      const res = await fetch(`${BASE}/api/delivery/availability`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent_id: agentId, available })
+      });
+      if (!res.ok) throw new Error('Failed to update availability');
+      const json = await res.json();
+      // Optional: small notification
+      const msg = available ? 'You are Online' : 'You are Offline';
+      const noti = document.createElement('li');
+      noti.className = available ? 'bg-green-100 p-3 rounded shadow' : 'bg-gray-100 p-3 rounded shadow';
+      noti.textContent = `✅ ${msg}`;
+      document.getElementById('notifications').prepend(noti);
+    } catch (e) {
+      // Revert UI on failure
+      toggle.checked = !available;
+      window.__isAvailable = toggle.checked;
+      if (toggle.checked) {
+        availText.textContent = 'Online';
+        availText.className = 'text-sm font-semibold px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200';
+      } else {
+        availText.textContent = 'Offline';
+        availText.className = 'text-sm font-semibold px-2 py-1 rounded bg-gray-100 text-gray-700 border border-gray-200';
+      }
+      alert('Failed to update availability');
+      console.error(e);
+    }
+  });
+
+  // ===== Fullscreen Map for current/selected order =====
+  const fullModal = document.createElement('div');
+  fullModal.id = 'deliveryFullMapModal';
+  fullModal.className = 'fixed inset-0 bg-black/70 hidden items-center justify-center z-[9998]';
+  fullModal.innerHTML = `
+    <div class="relative bg-white w-[95vw] h-[90vh] rounded-xl overflow-hidden shadow-2xl">
+      <button id="deliveryFullMapClose" class="absolute right-3 top-3 z-[9999] bg-white/90 hover:bg-white text-gray-700 rounded-full w-9 h-9 flex items-center justify-center shadow" title="Close">×</button>
+      <div class="absolute left-3 top-3 z-[9999] bg-white/90 rounded-lg px-3 py-2 text-sm text-gray-700 shadow">
+        <div class="space-y-1">
+          <div><span class="font-semibold">Order:</span> <span id="delInfoOrder">—</span></div>
+          <div><span class="font-semibold">Restaurant:</span> <span id="delInfoRestaurant">—</span></div>
+          <div><span class="font-semibold">User Phone:</span> <span id="delInfoPhone">—</span></div>
+        </div>
+      </div>
+      <div id="deliveryFullMap" class="w-full h-full"></div>
+    </div>`;
+  document.body.appendChild(fullModal);
+
+  let deliveryFullMap; let deliveryFullLayers = [];
+  let cachedRestaurants = new Map();
+
+  document.getElementById('btnFullMapDelivery').addEventListener('click', async ()=>{
+    // Fetch my current orders and pick the first one
+    try{
+      const res = await fetch(`${BASE}/api/delivery/${agentId}/orders`);
+      const orders = res.ok ? await res.json() : [];
+      const ord = orders[0] || null;
+      openDeliveryFullMap(ord);
+    }catch(e){ openDeliveryFullMap(null); }
+  });
+
+  function openDeliveryFullMap(order){
+    fullModal.classList.remove('hidden'); fullModal.classList.add('flex');
+    const closeBtn = document.getElementById('deliveryFullMapClose');
+    if(!deliveryFullMap){
+      deliveryFullMap = new mappls.Map('deliveryFullMap', { center: [lastAgentLat, lastAgentLng], zoom: 13 });
+    }
+    drawDeliveryRoute(order);
+    closeBtn.onclick = ()=>{ fullModal.classList.add('hidden'); fullModal.classList.remove('flex'); };
+    fullModal.addEventListener('click', (e)=>{ if(e.target === fullModal) closeBtn.click(); });
+  }
+
+  function clearDeliveryRoute(){
+    deliveryFullLayers.forEach(l => {
+      try{
+        if (typeof l.setMap === 'function') l.setMap(null);
+        else if (typeof l.remove === 'function') l.remove();
+      }catch(_){ }
+    });
+    deliveryFullLayers = [];
+  }
+
+  async function getMapplsToken(){
+    if (mapplsToken) return mapplsToken;
+    try{
+      const res = await fetch(`${BASE}/api/mappls/token`);
+      if(!res.ok) throw new Error('token request failed');
+      const data = await res.json();
+      mapplsToken = data.access_token || data.token || null;
+      return mapplsToken;
+    } catch(e){ console.error('Failed to get Mappls token:', e.message); return null; }
+  }
+
+  async function getRestaurant(rid) {
+  const id = Number(rid);
+  if (cachedRestaurants.has(id)) return cachedRestaurants.get(id);
+
+  try {
+    // Fetch all restaurants once (cacheable)
+    const res = await fetch(`${BASE}/api/restaurants`);
+    const arr = res.ok ? await res.json() : [];
+
+    arr.forEach(r => {
+      // ✅ Normalize both possible column names
+      const normalized = {
+        ...r,
+        lat: r.lat ?? r.latitude ?? null,
+        lng: r.lng ?? r.longitude ?? null
+      };
+      cachedRestaurants.set(Number(r.id), normalized);
+    });
+
+    return cachedRestaurants.get(id) || null;
+  } catch (err) {
+    console.error('getRestaurant error:', err);
+    return null;
+  }
+}
+
+
+async function drawDeliveryRoute(order) {
+  try {
+    if (!order) return console.warn("⚠️ No active order to draw route");
+
+    // 🧠 Extract user & restaurant IDs
+    const rid = Number(order.restaurant_id);
+    const userLat = Number(order.delivery_lat);
+    const userLng = Number(order.delivery_lng);
+    const agentId = Number(order.agent_id || order.agentId);
+
+    // 🏪 Fetch restaurant data (cached)
+    const restaurant = await getRestaurant(rid);
+    if (!restaurant) {
+      showToast(`Restaurant #${rid} not found`, false);
+      return;
+    }
+
+    // Normalize restaurant coords
+    const rlat = Number(restaurant.lat);
+    const rlng = Number(restaurant.lng);
+
+    // Validate coordinates
+    if (!Number.isFinite(userLat) || !Number.isFinite(userLng)) {
+      showToast("User delivery location not available", false);
+      return;
+    }
+    if (!Number.isFinite(rlat) || !Number.isFinite(rlng)) {
+      showToast(`Restaurant #${rid} has no coordinates yet. Please set it from Admin Dashboard.`, false);
+      return;
+    }
+
+    // 🔄 Clear old route layers
+    if (window.deliveryMapLayers && Array.isArray(window.deliveryMapLayers)) {
+      window.deliveryMapLayers.forEach(l => {
+        try {
+          if (typeof l.remove === "function") l.remove();
+          else if (typeof l.setMap === "function") l.setMap(null);
+        } catch (_) {}
+      });
+    }
+    window.deliveryMapLayers = [];
+
+    // 🗺️ Initialize Map if needed
+    if (!window.deliveryMap) {
+      window.deliveryMap = new mappls.Map("deliveryFullMap", {
+        center: [rlat, rlng],
+        zoom: 13
+      });
+    }
+    const map = window.deliveryMap;
+
+    // 🚴 Ensure/Update agent marker using last known location
+    if (!window.deliveryAgentMarker) {
+      window.deliveryAgentMarker = new mappls.Marker({
+        map,
+        position: [lastAgentLat, lastAgentLng],
+        popupHtml: 'You (Agent) 🚴'
+      });
+    } else {
+      try { window.deliveryAgentMarker.setPosition([lastAgentLat, lastAgentLng]); } catch(_){}
+    }
+
+    // Add Restaurant + Customer markers
+    const restMarker = new mappls.Marker({
+      map,
+      position: [rlat, rlng],
+      popupHtml: `🍽️ ${restaurant.name} (#${rid})`
+    });
+    const userMarker = new mappls.Marker({
+      map,
+      position: [userLat, userLng],
+      popupHtml: "🏠 Customer Location"
+    });
+
+    window.deliveryMapLayers.push(restMarker, userMarker);
+
+    // 🚗 Draw Mappls Route
+    const routeUrl = `https://apis.mappls.com/advancedmaps/v1/MAPPLS_API_KEY/route_adv/driving/${rlng},${rlat};${userLng},${userLat}?geometries=geojson`;
+
+    const res = await fetch(routeUrl);
+    const data = await res.json();
+
+    const coords = data?.routes?.[0]?.geometry?.coordinates?.map(c => [c[1], c[0]]);
+    if (!coords?.length) return showToast("Failed to get route path", false);
+
+    const route = new mappls.Polyline({
+      map,
+      path: coords,
+      strokeColor: "#16a34a",
+      strokeWeight: 6,
+      strokeOpacity: 1
+    });
+    window.deliveryMapLayers.push(route);
+
+    // 🚦 Adjust map view to fit everything
+    const allLats = [rlat, userLat];
+    const allLngs = [rlng, userLng];
+    const minLat = Math.min(...allLats);
+    const maxLat = Math.max(...allLats);
+    const minLng = Math.min(...allLngs);
+    const maxLng = Math.max(...allLngs);
+
+    map.fitBounds([[minLat, minLng], [maxLat, maxLng]]);
+
+    // 🕓 ETA Display (optional)
+    const etaMins = Math.round((data.routes[0].duration || 0) / 60);
+    const infoBox = document.getElementById("deliveryRouteInfo");
+    if (infoBox) infoBox.innerHTML = `
+      <div class="text-gray-700">
+        <b>ETA:</b> ${etaMins} min<br>
+        <b>Restaurant:</b> ${restaurant.name}<br>
+        <b>Customer:</b> ${order.customer_name || "User"}
+      </div>
+    `;
+
+  } catch (err) {
+    console.error("drawDeliveryRoute error:", err);
+    showToast("Error drawing delivery route", false);
+  }
+}
+// Removed stray/invalid ETA lines that referenced out-of-scope variables and caused runtime errors
+
+</script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scan QR – Tindo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <link rel="icon" href="images/tindo-logo.png" />
+  <style>
+    body {
+      background: linear-gradient(135deg, #f6fff7 0%, #e5fbe7 100%);
+      font-family: 'Poppins', sans-serif;
+    }
+    .fade-in {
+      animation: fadeIn 0.7s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen p-6">
+  <div class="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full text-center fade-in">
+
+    <!-- Logo -->
+    <img src="images/tindo-logo.png" alt="Tindo Logo" class="w-16 h-16 mx-auto mb-3 rounded-full">
+
+    <h1 class="text-2xl font-bold text-gray-800 mb-2">Scan UPI QR Code</h1>
+    <p class="text-gray-500 mb-6">Point your camera at the QR code to pay automatically.</p>
+
+    <!-- Scanner Container -->
+    <div class="relative mx-auto mb-4 rounded-xl border-4 border-green-200 shadow-md w-72 h-72 flex items-center justify-center bg-white">
+  <img src="assets/png.jpg" alt="Scan this QR" class="absolute inset-0 w-full h-full object-contain rounded-xl" style="z-index:1;" />
+      <div id="reader" class="w-full h-full" style="z-index:2;"></div>
+    </div>
+
+    <p id="scan-result" class="text-green-700 font-semibold mt-3"></p>
+
+    <button onclick="stopScanner()" 
+            class="bg-green-600 text-white px-6 py-2 mt-4 rounded-xl font-semibold hover:bg-green-700 hidden" 
+            id="stopButton">
+      Stop Scanner
+    </button>
+
+    <p class="text-xs text-gray-500 mt-4">🔒 Camera access is only used for QR scanning</p>
+  </div>
+
+  <script>
+    const html5QrCode = new Html5Qrcode("reader");
+    const scanResult = document.getElementById("scan-result");
+    const stopButton = document.getElementById("stopButton");
+
+    // Start scanner with back camera (if available)
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length) {
+        const cameraId = devices[0].id; // choose back camera
+        html5QrCode.start(
+          cameraId, 
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          qrCodeMessage => {
+            console.log(`QR detected: ${qrCodeMessage}`);
+            scanResult.innerHTML = "✅ QR Scanned Successfully!";
+            stopButton.classList.remove("hidden");
+
+            // Auto redirect if UPI QR detected
+            if (qrCodeMessage.startsWith("upi://")) {
+              window.location.href = qrCodeMessage;
+            } else {
+              alert("Scanned QR: " + qrCodeMessage);
+            }
+            html5QrCode.stop();
+          },
+          errorMessage => {
+            // console.log(`QR error: ${errorMessage}`);
+          }
+        ).catch(err => {
+          alert("Camera permission denied or unavailable: " + err);
+        });
+      }
+    });
+
+    function stopScanner() {
+      html5QrCode.stop().then(() => {
+        scanResult.innerHTML = "Scanner stopped.";
+        stopButton.classList.add("hidden");
+      }).catch(err => {
+        console.error("Stop error: ", err);
+      });
+    }
+  </script>
+</body>
+</html>

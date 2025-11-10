@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>All Restaurants — Tindo</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/animations.css">
+  <script src="js/script.js" defer></script>
+  <script src="js/cart.js" defer></script>
+  <style>
+    .card { background: white; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+    .btn-see { background: #ecfdf5; color: #065f46; padding: 8px 14px; border-radius: 8px; font-weight: 600; }
+    /* Green hover effect for restaurant cards */
+    .card { transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease; border: 1px solid rgba(0,0,0,0.04); }
+    .card:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 24px 48px rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.18); }
+    .card:hover .btn-see { background: #dcfce7; color: #064e3b; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-white min-h-screen">
+  <header class="bg-white/95 sticky top-0 z-50 shadow">
+    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold">T</div>
+        <h1 class="font-bold text-xl">Tindo — All Restaurants</h1>
+      </div>
+      <nav class="space-x-4">
+        <a href="index.html" class="text-gray-600 hover:text-green-600">Home</a>
+        <a href="cart.html" class="text-gray-600 hover:text-green-600">Cart</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-6 py-12">
+    <h2 class="text-3xl font-bold text-green-700 mb-8">All Restaurants</h2>
+    <div id="all-restaurants" class="grid md:grid-cols-3 gap-8">
+      <p class="text-gray-500">Loading restaurants...</p>
+    </div>
+  </main>
+
+  <footer class="text-center text-gray-500 py-12">&copy; 2025 Tindo</footer>
+
+<script>
+const BASE = "http://localhost:5000";
+
+async function loadAllRestaurants(){
+  try{
+    const res = await fetch(`${BASE}/api/restaurants`);
+    const data = await res.json();
+    renderAll(data || []);
+  }catch(e){
+    console.error('Failed to load restaurants', e);
+    document.getElementById('all-restaurants').innerHTML = '<p class="text-red-500">Failed to load restaurants</p>';
+  }
+}
+
+function renderAll(list){
+  const container = document.getElementById('all-restaurants');
+  if(!container) return;
+  if(!list.length){ container.innerHTML = '<p class="text-gray-500">No restaurants found</p>'; return; }
+  container.innerHTML = list.map(r => `
+    <div class="card rounded-2xl overflow-hidden cursor-pointer transition transform group" onclick="window.location.href='restaurant.html?id=${r.id}'">
+      <div class="h-48 relative">
+        <img src="${BASE}/uploads/${r.image_url || 'default.jpg'}" class="h-full w-full object-cover" alt="${r.name}">
+      </div>
+      <div class="p-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-2">${r.name}</h3>
+        <p class="text-gray-600 mb-3">${r.cuisine || 'Multi Cuisine'}</p>
+        <div class="flex items-center justify-between">
+          <span class="text-green-600 font-semibold">⭐ ${(r.avg_rating || r.rating || '4.3')} · ${r.eta || '30'} mins</span>
+          <a href="restaurant.html?id=${r.id}" class="btn-see">View</a>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Kick off
+loadAllRestaurants();
+</script>
+</body>
+</html>
